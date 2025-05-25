@@ -33,10 +33,10 @@ public class AddOnPathResolver
         {
             { segs => segs.Count >= 2 && segs[^1] == "Interface" && segs[^2] == "_retail_",
               new[] { "AddOns" } },
-            
+
             { segs => segs.Count >= 1 && segs[^1] == "_retail_",
               new[] { "Interface", "AddOns" } },
-            
+
             { segs => segs.Count >= 1 && segs[^1] == "World of Warcraft",
               new[] { "_retail_", "Interface", "AddOns" } }
         };

@@ -30,7 +30,8 @@ public class AddOnPathResolverTest
         {
             AddOnPathResolver.NormalizeAddOnsDirectory("   ");
         });
-    }    [TestCase(@"C:\Program Files (x86)\World of Warcraft\_retail_\Interface\AddOns", TestName = "ValidAddOnsPath_ReturnsUnchanged")]
+    }
+    [TestCase(@"C:\Program Files (x86)\World of Warcraft\_retail_\Interface\AddOns", TestName = "ValidAddOnsPath_ReturnsUnchanged")]
     [TestCase(@"_retail_\Interface\AddOns", TestName = "ValidAddOnsPathRelative_ReturnsFullPath")]
     public void NormalizeAddOnsDirectory_ValidAddOnsPaths(string addOnsPath)
     {
@@ -59,25 +60,26 @@ public class AddOnPathResolverTest
     {
         yield return new TestCaseData(@"C:\Program Files (x86)\World of Warcraft\_retail_\Interface", "AddOns")
             .SetName("InterfacePath_AppendsAddOns");
-            
+
         yield return new TestCaseData(@"C:\Program Files (x86)\World of Warcraft\_retail_", @"Interface\AddOns")
             .SetName("RetailPath_AppendsInterfaceAddOns");
-            
+
         yield return new TestCaseData(@"C:\Program Files (x86)\World of Warcraft", @"_retail_\Interface\AddOns")
             .SetName("WorldOfWarcraftPath_AppendsFullStructure");
-            
+
         yield return new TestCaseData(@"D:\Games\World of Warcraft", @"_retail_\Interface\AddOns")
             .SetName("AlternativeInstallLocation_WorksCorrectly");
-            
+
         yield return new TestCaseData(@"D:\WoW\_retail_", @"Interface\AddOns")
             .SetName("AltRetailPathCombination_AppendsInterfaceAddOns");
-            
+
         yield return new TestCaseData(@"C:\Program Files (x86)\SomeOtherGame\_retail_", @"Interface\AddOns")
             .SetName("RetailPathWithIncorrectStructure_IsProcessedBasedOnFolderNameOnly");
-            
+
         yield return new TestCaseData(@"C:\Program Files (x86)\World of Warcraft\Backup\World of Warcraft", @"_retail_\Interface\AddOns")
             .SetName("NestedWorldOfWarcraftDirectories_IsProcessedBasedOnFolderNameOnly");
-    }    [TestCaseSource(nameof(InvalidPathCases))]
+    }
+    [TestCaseSource(nameof(InvalidPathCases))]
     public void NormalizeAddOnsDirectory_InvalidPaths_ReturnsNull(string invalidPath)
     {
         var result = AddOnPathResolver.NormalizeAddOnsDirectory(invalidPath);
@@ -89,31 +91,32 @@ public class AddOnPathResolverTest
     {
         yield return new TestCaseData(@"C:\Some\Random\Path")
             .SetName("InvalidPath_ReturnsNull");
-            
+
         yield return new TestCaseData(@"C:\Games\Some Other Game")
             .SetName("InvalidGameDirectory_ReturnsNull");
-            
+
         yield return new TestCaseData(@"C:\Program Files (x86)\World of Warcraft\WrongParent\AddOns")
             .SetName("AddOnsPathWithIncorrectParentStructure_ReturnsNull");
-            
+
         yield return new TestCaseData(@"C:\Program Files (x86)\World of Warcraft\WrongParent\Interface")
             .SetName("InterfacePathWithIncorrectParent_ReturnsNull");
-            
+
         yield return new TestCaseData(@"C:\Program Files (x86)\WoW Custom")
             .SetName("CustomDirectoryName_ReturnsNull");
-            
+
         yield return new TestCaseData(@"C:\Program Files (x86)\World of Warcraft\_classic_\Interface\AddOns")
             .SetName("ClassicInsteadOfRetail_ReturnsNull");
-            
+
         yield return new TestCaseData(@"C:\Program Files (x86)\My World of Warcraft Game")
             .SetName("PartialMatchInPath_ReturnsNull");
-            
+
         yield return new TestCaseData(@"C:\Games\World of Warcraft\Interface")
             .SetName("AltInterfacePathCombination_ReturnsNull");
-            
+
         yield return new TestCaseData(@"C:\Games\AddOns")
             .SetName("AddOnsPathWithoutProperParents_ReturnsNull");
-    }    [TestCaseSource(nameof(CaseSensitivityCases))]
+    }
+    [TestCaseSource(nameof(CaseSensitivityCases))]
     public void NormalizeAddOnsDirectory_CaseSensitivityTests_ReturnsNull(string mixedCasePath)
     {
         var result = AddOnPathResolver.NormalizeAddOnsDirectory(mixedCasePath);
@@ -125,13 +128,13 @@ public class AddOnPathResolverTest
     {
         yield return new TestCaseData(@"C:\Program Files (x86)\world of warcraft")
             .SetName("CaseDifferences_ReturnsNull");
-            
+
         yield return new TestCaseData(@"C:\Program Files (x86)\World of Warcraft\_RETAIL_")
             .SetName("RetailCaseDifferences_ReturnsNull");
-            
+
         yield return new TestCaseData(@"C:\Program Files (x86)\World of Warcraft\_retail_\INTERFACE")
             .SetName("InterfaceCaseDifferences_ReturnsNull");
-            
+
         yield return new TestCaseData(@"C:\Program Files (x86)\World of Warcraft\_retail_\Interface\ADDONS")
             .SetName("AddOnsCaseDifferences_ReturnsNull");
     }

@@ -73,7 +73,7 @@ public class FileSystemConfigServiceTest
         await service.LoadConfigSingleton();
         var loadedContent = mockEnv.FileSystem.File.ReadAllText(configPath);
         var loadedConfig = JsonSerializer.Deserialize<Config>(loadedContent);
-        
+
         Assert.That(loadedConfig, Is.Not.Null);
         Assert.That(loadedConfig!.AddOnsPath, Is.EqualTo(existingAddOnsPath));
         Assert.That(service.Instance.AddOnsPath, Is.EqualTo(existingAddOnsPath));

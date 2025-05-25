@@ -221,6 +221,13 @@ public class AddonUpdateService
 }
 ```
 
+### Formatting
+```bash
+# Format a specific file
+dotnet format --include src/CoffeeUpdateClient/Services/AddonUpdateService.cs
+```
+Always run `dotnet format` after making changes to any file, no matter how small. After running `dotnet format`, the file on disk will be updated to match the formatting rules; include the changes in the changeset presented to the user. Do not attempt to further format the file after running the tool.
+
 ### Error Handling
 ```csharp
 // Provide meaningful error messages
@@ -268,6 +275,7 @@ Use this command to run all unit tests in the test projects. Always run tests af
 5. **Use NUnit 3 syntax** - No legacy NUnit 2 patterns
 6. **Verify file operations in tests** - Assert file existence, content, and deletion
 7. **Run existing tests after changes** - Ensure no regressions
+8. **Format all modified files** - Run `dotnet format` after any code changes
 
 ## Common Anti-Patterns to Avoid
 ```csharp
