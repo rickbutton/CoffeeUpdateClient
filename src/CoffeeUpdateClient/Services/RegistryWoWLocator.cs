@@ -1,10 +1,10 @@
 using Microsoft.Win32;
 
-namespace CoffeeUpdateClient.Utils;
+namespace CoffeeUpdateClient.Services;
 
-class InstallLocator
+class RegistryWoWLocator : IWoWLocator
 {
-    public static string? GetWoWInstallPath()
+    public string? GetWoWInstallPath()
     {
         var installPath = FindApplicationPath(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", "World of Warcraft");
 

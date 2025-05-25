@@ -13,12 +13,19 @@ public class FileSystemConfigServiceTest
     {
         var mockEnv = new MockEnv();
         var appDataFolder = new AppDataFolder(mockEnv);
-        var service = new FileSystemConfigService(mockEnv, appDataFolder);
+        var wowLocator = new MockWowLocator(@"C:\World of Warcraft");
+
+        var service = new FileSystemConfigService(mockEnv, appDataFolder, wowLocator);
 
         await service.LoadConfigSingleton();
 
         var expected = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient\config.json";
         Assert.That(mockEnv.FileSystem.File.Exists(expected), Is.True);
+
+        var loadedContent = mockEnv.FileSystem.File.ReadAllText(expected);
+        var loadedConfig = JsonSerializer.Deserialize<Config>(loadedContent);
+
+        Assert.That(loadedConfig?.AddOnsPath, Is.EqualTo(@"C:\World of Warcraft\_retail_\Interface\AddOns"));
     }
 
     [Test]
@@ -26,7 +33,9 @@ public class FileSystemConfigServiceTest
     {
         var mockEnv = new MockEnv();
         var appDataFolder = new AppDataFolder(mockEnv);
-        var service = new FileSystemConfigService(mockEnv, appDataFolder);
+        var wowLocator = new MockWowLocator();
+
+        var service = new FileSystemConfigService(mockEnv, appDataFolder, wowLocator);
 
         Assert.Throws<InvalidOperationException>(() =>
         {
@@ -39,6 +48,7 @@ public class FileSystemConfigServiceTest
     {
         var mockEnv = new MockEnv();
         var appDataFolder = new AppDataFolder(mockEnv);
+        var wowLocator = new MockWowLocator();
         var configPath = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient\config.json";
 
         // Pre-create the config file
@@ -47,7 +57,7 @@ public class FileSystemConfigServiceTest
         var json = JsonSerializer.Serialize(existingConfig);
         mockEnv.FileSystem.File.WriteAllText(configPath, json);
 
-        var service = new FileSystemConfigService(mockEnv, appDataFolder);
+        var service = new FileSystemConfigService(mockEnv, appDataFolder, wowLocator);
 
         await service.LoadConfigSingleton();
 
@@ -59,6 +69,7 @@ public class FileSystemConfigServiceTest
     {
         var mockEnv = new MockEnv();
         var appDataFolder = new AppDataFolder(mockEnv);
+        var wowLocator = new MockWowLocator();
         var configPath = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient\config.json";
         var existingAddOnsPath = @"C:\custom\existing\addons\path";
 
@@ -68,7 +79,7 @@ public class FileSystemConfigServiceTest
         var json = JsonSerializer.Serialize(existingConfig);
         mockEnv.FileSystem.File.WriteAllText(configPath, json);
 
-        var service = new FileSystemConfigService(mockEnv, appDataFolder);
+        var service = new FileSystemConfigService(mockEnv, appDataFolder, wowLocator);
 
         await service.LoadConfigSingleton();
         var loadedContent = mockEnv.FileSystem.File.ReadAllText(configPath);

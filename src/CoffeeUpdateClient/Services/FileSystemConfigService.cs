@@ -10,18 +10,20 @@ public class FileSystemConfigService : IConfigService
 {
     private readonly IEnv _env;
     private readonly AppDataFolder _appDataFolder;
+    private readonly IWoWLocator _wowLocator;
 
-    public FileSystemConfigService(IEnv env, AppDataFolder appDataFolder)
+    public FileSystemConfigService(IEnv env, AppDataFolder appDataFolder, IWoWLocator wowLocator)
     {
         _env = env;
         _appDataFolder = appDataFolder;
+        _wowLocator = wowLocator;
     }
 
     private Config CreateDefaultConfig()
     {
         var config = new Config();
 
-        var installPath = InstallLocator.GetWoWInstallPath();
+        var installPath = _wowLocator.GetWoWInstallPath();
         var addOnsPath = AddOnPathResolver.NormalizeAddOnsDirectory(installPath);
         if (addOnsPath != null)
         {
