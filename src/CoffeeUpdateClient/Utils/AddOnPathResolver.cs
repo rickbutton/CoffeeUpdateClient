@@ -1,13 +1,14 @@
-using System.IO;
+using Path = System.IO.Path;
 using Serilog;
 
 namespace CoffeeUpdateClient.Utils;
 
-class AddOnPathResolver
+public class AddOnPathResolver
 {
     public static string? NormalizeAddOnsDirectory(string? path)
     {
-        if (string.IsNullOrEmpty(path)) {
+        if (string.IsNullOrEmpty(path))
+        {
             Log.Debug($"NormalizeAddOnsDirectory: path=null");
             return null;
         }

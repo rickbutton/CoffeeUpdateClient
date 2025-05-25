@@ -1,3 +1,12 @@
 {
-    "dotnet.preferCSharpExtension": true
+    "dotnet.preferCSharpExtension": true,
+    "nunitTestRunner.projectsPatterns": [
+        "tests/**/*.Tests.dll"
+    ],
+    "nunitTestRunner.discoveryOnStartup": true,
+    "nunitTestRunner.fsWatcher.patterns": {
+        "tests": {
+            "pattern": "**/*.cs",
+        }
+    }
 }

@@ -1,6 +1,6 @@
 namespace CoffeeUpdateClient.Models;
 
-class Config
+public class Config
 {
     public string AddOnsPath { get; set; } = string.Empty;
 }

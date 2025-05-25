@@ -1,7 +1,6 @@
-using System.Globalization;
-using System.IO;
 using System.Reactive;
 using System.Reactive.Linq;
+using CoffeeUpdateClient.Services;
 using CoffeeUpdateClient.Utils;
 using Microsoft.Win32;
 using ReactiveUI;
@@ -40,9 +39,9 @@ public class AppViewModel : ReactiveObject
 
     public ReactiveCommand<Unit, string?> Browse { get; }
 
-    public AppViewModel(string? initialAddOnsPath)
+    public AppViewModel(IConfigService configService, IEnv env)
     {
-        _addOnsPath = initialAddOnsPath ?? string.Empty;
+        _addOnsPath = configService.Instance.AddOnsPath ?? string.Empty;
         _normalizedAddOnsPath = this
             .WhenAnyValue(x => x.AddOnsPath)
             .Select(AddOnPathResolver.NormalizeAddOnsDirectory)

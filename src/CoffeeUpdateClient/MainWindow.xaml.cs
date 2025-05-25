@@ -3,6 +3,7 @@ using System.Reactive.Linq;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Media;
+using CoffeeUpdateClient.Services;
 using CoffeeUpdateClient.Utils;
 using CoffeeUpdateClient.ViewModels;
 using Microsoft.Win32;
@@ -13,10 +14,10 @@ namespace CoffeeUpdateClient;
 
 public partial class MainWindow
 {
-    public MainWindow(string? initialAddOnsPath)
+    public MainWindow(IConfigService configService, IEnv env)
     {
         InitializeComponent();
-        ViewModel = new AppViewModel(initialAddOnsPath);
+        ViewModel = new AppViewModel(configService, env);
 
         this.WhenActivated(disposableRegistration =>
         {

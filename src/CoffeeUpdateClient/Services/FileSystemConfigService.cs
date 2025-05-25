@@ -1,12 +1,23 @@
-using System.IO;
+using Path = System.IO.Path;
 using System.Text.Json;
 using CoffeeUpdateClient.Models;
+using CoffeeUpdateClient.Utils;
+using Windows.System;
 
-namespace CoffeeUpdateClient.Utils;
+namespace CoffeeUpdateClient.Services;
 
-class ConfigLoader
+public class FileSystemConfigService : IConfigService
 {
-    private static Config CreateDefaultConfig()
+    private readonly IEnv _env;
+    private readonly AppDataFolder _appDataFolder;
+
+    public FileSystemConfigService(IEnv env, AppDataFolder appDataFolder)
+    {
+        _env = env;
+        _appDataFolder = appDataFolder;
+    }
+
+    private Config CreateDefaultConfig()
     {
         var config = new Config();
 
@@ -24,47 +35,48 @@ class ConfigLoader
         return config;
     }
 
-    private static async Task<Config> LoadFromPath(string path)
+    private async Task<Config> LoadFromPath(string path)
     {
-        using FileStream stream = File.OpenRead(path);
+        using var stream = _env.FileSystem.File.OpenRead(path);
         var config = await JsonSerializer.DeserializeAsync<Config>(stream);
         return config!;
     }
 
-    private static string GetUserConfigPath()
+    private string GetUserConfigPath()
     {
         return Path.Combine(
-            AppDataFolder.GetPath(),
+            _appDataFolder.GetPath(),
             "config.json"
         );
     }
 
-    private static void CreateDefaultConfigIfNotExists()
+    private void CreateDefaultConfigIfNotExists()
     {
-        AppDataFolder.EnsurePathExists();
+        _appDataFolder.EnsurePathExists();
         var path = GetUserConfigPath();
-        if (!File.Exists(path))
+        if (!_env.FileSystem.File.Exists(path))
         {
             var config = CreateDefaultConfig();
-            using FileStream stream = File.Create(path);
+            using var stream = _env.FileSystem.File.Create(path);
             JsonSerializer.Serialize(stream, config);
         }
     }
 
-    private static async Task<Config> LoadFromAppData()
+    private async Task<Config> LoadFromAppData()
     {
         CreateDefaultConfigIfNotExists();
         return await LoadFromPath(GetUserConfigPath());
     }
 
-    private static Config? _instance;
+    private Config? _instance;
 
-    public static async Task LoadConfigSingleton()
+    public async Task<Config> LoadConfigSingleton()
     {
         _instance ??= await LoadFromAppData();
+        return _instance;
     }
 
-    public static Config Instance
+    public Config Instance
     {
         get
         {
