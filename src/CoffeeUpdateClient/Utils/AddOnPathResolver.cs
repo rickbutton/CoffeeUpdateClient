@@ -30,7 +30,6 @@ public class AddOnPathResolver
             return null;
         }
 
-        path = Path.GetFullPath(path);
         Log.Debug($"NormalizeAddOnsDirectory: input={path}");
 
         var segments = GetPathSegments(path);
@@ -46,15 +45,15 @@ public class AddOnPathResolver
 
         var patterns = new List<PathPattern>
         {
-            new PathPattern(
+            new(
                 segs => segs.Count >= 2 && segs[^1] == InterfaceFolder && segs[^2] == RetailFolder,
-                new[] { AddOnsFolder }),
-            new PathPattern(
+                [AddOnsFolder]),
+            new(
                 segs => segs.Count >= 1 && segs[^1] == RetailFolder,
-                new[] { InterfaceFolder, AddOnsFolder }),
-            new PathPattern(
+                [InterfaceFolder, AddOnsFolder]),
+            new(
                 segs => segs.Count >= 1 && segs[^1] == WowFolder,
-                new[] { RetailFolder, InterfaceFolder, AddOnsFolder })
+                [RetailFolder, InterfaceFolder, AddOnsFolder])
         };
 
         foreach (var pattern in patterns)
