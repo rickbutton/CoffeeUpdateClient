@@ -9,7 +9,7 @@
         xmlns:reactiveui="clr-namespace:ReactiveUI;assembly=ReactiveUI.Wpf"
         mc:Ignorable="d"
         Title="Coffee Addon Updater"
-        Height="250"
+        Height="300"
         Width="500"
         ResizeMode="NoResize"
         Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}">
@@ -21,6 +21,12 @@
                 </Style>
                 <Style TargetType="StackPanel" x:Key="PathSelectInputStyle">
                     <Setter Property="Margin" Value="0,0,0,30"/>
+                </Style>
+                <Style TargetType="ListView" x:Key="AddOnListViewStyle">
+                    <Setter Property="Margin" Value="30,0,30,20"/>
+                </Style>
+                <Style TargetType="TextBlock" x:Key="ErrorMessageTextBlockStyle">
+                    <Setter Property="Margin" Value="30,0,30,0"/>
                 </Style>
             </StackPanel.Resources>
             <Grid
@@ -59,7 +65,39 @@
                 </StackPanel>
             </StackPanel>
 
-            <TextBlock Name="ErrorMessageTextBlock" Text="" Foreground="Red" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <TextBlock Name="ErrorMessageTextBlock" Text="" Foreground="Red" HorizontalAlignment="Left" VerticalAlignment="Center" Style="{StaticResource ErrorMessageTextBlockStyle}"/>
+            <ListView Name="AddOnListView"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                      Style="{StaticResource AddOnListViewStyle}">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="Focusable" Value="false"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.View>
+                    <GridView>
+                        <GridView.ColumnHeaderContainerStyle>
+                            <Style TargetType="{x:Type GridViewColumnHeader}">
+                                <Setter Property="IsHitTestVisible" Value="False"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Left" />
+                            </Style>
+                        </GridView.ColumnHeaderContainerStyle>
+                        <GridViewColumn Header="Name" DisplayMemberBinding="{Binding RemoteMetadata.Name}" Width="Auto" />
+                        <GridViewColumn Header="Latest Version" DisplayMemberBinding="{Binding RemoteMetadata.Version}" Width="Auto" />
+                        <GridViewColumn Header="Local Version" DisplayMemberBinding="{Binding LocalMetadataString}" Width="Auto" />
+                        <GridViewColumn Header="Action" DisplayMemberBinding="{Binding RequiredAction}" Width="{Binding ElementName=helperField, Path=ActualWidth}"/>
+                    </GridView>
+                </ListView.View>
+            </ListView>
+            <Grid Visibility="Hidden">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{Binding ElementName=col1, Path=ActualWidth}"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
+                </Grid.ColumnDefinitions>
+                <Grid Grid.Column="1" x:Name="helperField"/>
+            </Grid>
 
             <Button Name="UpdateButton"
                     Content="Update" 

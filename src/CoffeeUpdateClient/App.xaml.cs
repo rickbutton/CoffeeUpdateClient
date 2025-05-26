@@ -26,9 +26,11 @@ public partial class App : Application
         services.AddSingleton<IEnv, WindowsEnv>();
         services.AddSingleton<IConfigService, FileSystemConfigService>();
         services.AddSingleton<IWoWLocator, RegistryWoWLocator>();
+        services.AddSingleton<IAddOnDownloader, HttpsAddOnDownloader>();
 
         // utilities
         services.AddSingleton<AppDataFolder>();
+        services.AddSingleton<LocalAddOnMetadataLoader>();
 
         // main window
         services.AddSingleton<MainWindow>();

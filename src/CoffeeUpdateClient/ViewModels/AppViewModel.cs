@@ -1,5 +1,6 @@
 using System.Reactive;
 using System.Reactive.Linq;
+using CoffeeUpdateClient.Models;
 using CoffeeUpdateClient.Services;
 using CoffeeUpdateClient.Utils;
 using Microsoft.Win32;
@@ -37,9 +38,18 @@ public class AppViewModel : ReactiveObject
     private readonly ObservableAsPropertyHelper<AddOnsPathStateEnum> _addOnsPathState;
     public AddOnsPathStateEnum AddOnsPathState => _addOnsPathState.Value;
 
+    private readonly ObservableAsPropertyHelper<AddOnManifest?> _remoteAddOnManifest;
+    public AddOnManifest? RemoteAddOnManifest => _remoteAddOnManifest.Value;
+
+    private readonly ObservableAsPropertyHelper<bool> _remoteAddOnManifestIsAvailable;
+    public bool RemoteAddOnManifestIsAvailable => _remoteAddOnManifestIsAvailable.Value;
+
+    private readonly ObservableAsPropertyHelper<IEnumerable<AddOnViewModel>> _addOns;
+    public IEnumerable<AddOnViewModel> AddOns => _addOns.Value;
+
     public ReactiveCommand<Unit, string?> Browse { get; }
 
-    public AppViewModel(IConfigService configService, IEnv env)
+    public AppViewModel(IConfigService configService, IAddOnDownloader addOnDownloader, LocalAddOnMetadataLoader localAddOnMetadataLoader)
     {
         _addOnsPath = configService.Instance.AddOnsPath ?? string.Empty;
         _normalizedAddOnsPath = this
@@ -69,6 +79,28 @@ public class AppViewModel : ReactiveObject
                 }
             })
             .ToProperty(this, x => x.AddOnsPathState);
+        _remoteAddOnManifest = Observable.Timer(TimeSpan.Zero, TimeSpan.FromMinutes(5))
+            .SelectMany(async x =>
+            {
+                Log.Information("Fetching addon manifest");
+                var manifest = await addOnDownloader.GetLatestManifest().ConfigureAwait(false);
+                Log.Information("addon manifest fetched: {Manifest}", manifest);
+                return manifest;
+            })
+            .ToProperty(this, x => x.RemoteAddOnManifest);
+        _remoteAddOnManifestIsAvailable = this
+            .WhenAnyValue(x => x.RemoteAddOnManifest)
+            .Select(x => x != null)
+            .ToProperty(this, x => x.RemoteAddOnManifestIsAvailable);
+        _addOns = this
+            .WhenAnyValue(x => x.RemoteAddOnManifest)
+            .CombineLatest(this.WhenAnyValue(x => x.NormalizedAddOnsPath))
+            .Select(x =>
+            {
+                var (manifest, normalizedPath) = x;
+                return manifest?.AddOns != null ? manifest.AddOns.Select(y => new AddOnViewModel(normalizedPath, y, localAddOnMetadataLoader)) : Enumerable.Empty<AddOnViewModel>();
+            })
+            .ToProperty(this, x => x.AddOns);
 
         Browse = ReactiveCommand.Create<Unit, string?>((_) =>
         {

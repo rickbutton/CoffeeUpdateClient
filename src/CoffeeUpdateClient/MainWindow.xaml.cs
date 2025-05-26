@@ -14,10 +14,10 @@ namespace CoffeeUpdateClient;
 
 public partial class MainWindow
 {
-    public MainWindow(IConfigService configService, IEnv env)
+    public MainWindow(IConfigService configService, IAddOnDownloader addOnDownloader, LocalAddOnMetadataLoader localAddOnMetadataLoader)
     {
         InitializeComponent();
-        ViewModel = new AppViewModel(configService, env);
+        ViewModel = new AppViewModel(configService, addOnDownloader, localAddOnMetadataLoader);
 
         this.WhenActivated(disposableRegistration =>
         {
@@ -52,7 +52,7 @@ public partial class MainWindow
                     switch (value)
                     {
                         case AppViewModel.AddOnsPathStateEnum.Invalid:
-                            return "WoW AddOns folder is invalid. Make sure you selected a valid folder for Retail WoW.";
+                            return "WoW AddOns folder is invalid. Make sure you selected a valid folder for WoW.";
                         case AppViewModel.AddOnsPathStateEnum.Valid:
                             return "Valid WoW AddOn folder selected.";
                         case AppViewModel.AddOnsPathStateEnum.NotSet:
@@ -64,23 +64,28 @@ public partial class MainWindow
                 .DisposeWith(disposableRegistration);
 
             this.OneWayBind(ViewModel,
-            vm => vm.AddOnsPathState,
-            view => view.ErrorMessageTextBlock.Foreground,
-            value =>
-            {
-                switch (value)
+                vm => vm.AddOnsPathState,
+                view => view.ErrorMessageTextBlock.Foreground,
+                value =>
                 {
-                    case AppViewModel.AddOnsPathStateEnum.Invalid:
-                        return Brushes.Red;
-                    case AppViewModel.AddOnsPathStateEnum.Valid:
-                        return Brushes.Green;
-                    case AppViewModel.AddOnsPathStateEnum.NotSet:
-                        return Brushes.Black;
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(value), value, null);
-                }
-            })
-            .DisposeWith(disposableRegistration);
+                    switch (value)
+                    {
+                        case AppViewModel.AddOnsPathStateEnum.Invalid:
+                            return Brushes.Red;
+                        case AppViewModel.AddOnsPathStateEnum.Valid:
+                            return Brushes.Green;
+                        case AppViewModel.AddOnsPathStateEnum.NotSet:
+                            return Brushes.Black;
+                        default:
+                            throw new ArgumentOutOfRangeException(nameof(value), value, null);
+                    }
+                })
+                .DisposeWith(disposableRegistration);
+
+            this.OneWayBind(ViewModel,
+                vm => vm.AddOns,
+                view => view.AddOnListView.ItemsSource)
+                .DisposeWith(disposableRegistration);
 
             VersionTextBlock.Text = $"v{Assembly.GetExecutingAssembly().GetName().Version}";
         });

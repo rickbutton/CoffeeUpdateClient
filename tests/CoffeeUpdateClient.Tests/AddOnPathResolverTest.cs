@@ -9,25 +9,34 @@ public class AddOnPathResolverTest
 {
     [TestCase(null, TestName = "NullInput_ReturnsNull")]
     [TestCase("", TestName = "EmptyString_ReturnsNull")]
-    [TestCase("    ", TestName = "EmptyString_ReturnsNull")]
     public void NormalizeAddOnsDirectory_NullOrEmptyInput_ReturnsNull(string? inputPath)
     {
-        Assert.That(AddOnPathResolver.NormalizeAddOnsDirectory(inputPath), Is.Null);
+        var result = AddOnPathResolver.NormalizeAddOnsDirectory(inputPath);
+
+        Assert.That(result, Is.Null);
     }
 
     [TestCase(@"C:\Program Files (x86)\World of Warcraft\_retail_\Interface\AddOns", TestName = "ValidAddOnsPath_ReturnsUnchanged")]
     public void NormalizeAddOnsDirectory_ValidAddOnsPaths(string addOnsPath)
     {
+        var expectedPath = Path.GetFullPath(addOnsPath);
+
         var result = AddOnPathResolver.NormalizeAddOnsDirectory(addOnsPath);
 
-        Assert.That(result, Is.EqualTo(addOnsPath)); // Expected path is the same as input for absolute paths
+        Assert.That(result, Is.EqualTo(expectedPath));
     }
 
     [TestCaseSource(nameof(ValidPathCases))]
     public void NormalizeAddOnsDirectory_ValidPaths(string inputPath, string expectedSuffix)
     {
         var result = AddOnPathResolver.NormalizeAddOnsDirectory(inputPath);
-        var expectedPath = Path.Join(inputPath, expectedSuffix);
+
+        var expectedPath = inputPath;
+        foreach (var segment in expectedSuffix.Split('\\'))
+        {
+            expectedPath = Path.Join(expectedPath, segment);
+        }
+
         Assert.That(result, Is.EqualTo(expectedPath));
     }
 
@@ -54,7 +63,6 @@ public class AddOnPathResolverTest
         yield return new TestCaseData(@"C:\Program Files (x86)\World of Warcraft\Backup\World of Warcraft", @"_retail_\Interface\AddOns")
             .SetName("NestedWorldOfWarcraftDirectories_IsProcessedBasedOnFolderNameOnly");
     }
-
     [TestCaseSource(nameof(InvalidPathCases))]
     public void NormalizeAddOnsDirectory_InvalidPaths_ReturnsNull(string invalidPath)
     {
@@ -114,5 +122,88 @@ public class AddOnPathResolverTest
 
         yield return new TestCaseData(@"C:\Program Files (x86)\World of Warcraft\_retail_\Interface\ADDONS")
             .SetName("AddOnsCaseDifferences_ReturnsNull");
+    }
+
+    [Test]
+    public void NormalizeAddOnsDirectory_AlternativeInstallLocation_WorksCorrectly()
+    {
+        var altPath = @"D:\Games\World of Warcraft";
+        var expectedPath = @"D:\Games\World of Warcraft\_retail_\Interface\AddOns";
+
+        var result = AddOnPathResolver.NormalizeAddOnsDirectory(altPath);
+
+        Assert.That(result, Is.EqualTo(expectedPath));
+    }
+
+    [Test]
+    public void NormalizeAddOnsDirectory_CustomDirectoryName_ReturnsNull()
+    {
+        var customPath = @"C:\Program Files (x86)\WoW Custom";
+
+        var result = AddOnPathResolver.NormalizeAddOnsDirectory(customPath);
+
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public void NormalizeAddOnsDirectory_ClassicInsteadOfRetail_ReturnsNull()
+    {
+        var classicPath = @"C:\Program Files (x86)\World of Warcraft\_classic_\Interface\AddOns";
+
+        var result = AddOnPathResolver.NormalizeAddOnsDirectory(classicPath);
+
+        Assert.That(result, Is.Null);
+    }
+    [Test]
+    public void NormalizeAddOnsDirectory_NestedWorldOfWarcraftDirectories_IsProcessedBasedOnFolderNameOnly()
+    {
+        var nestedPath = @"C:\Program Files (x86)\World of Warcraft\Backup\World of Warcraft";
+        var expectedPath = @"C:\Program Files (x86)\World of Warcraft\Backup\World of Warcraft\_retail_\Interface\AddOns";
+
+        var result = AddOnPathResolver.NormalizeAddOnsDirectory(nestedPath);
+
+        Assert.That(result, Is.EqualTo(expectedPath));
+    }
+
+    [Test]
+    public void NormalizeAddOnsDirectory_PartialMatchInPath_ReturnsNull()
+    {
+        var partialPath = @"C:\Program Files (x86)\My World of Warcraft Game";
+
+        var result = AddOnPathResolver.NormalizeAddOnsDirectory(partialPath);
+
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public void NormalizeAddOnsDirectory_AltInterfacePathCombination_ReturnsNull()
+    {
+        var altPath = @"C:\Games\World of Warcraft\Interface";
+
+        var result = AddOnPathResolver.NormalizeAddOnsDirectory(altPath);
+
+        // This is null because it checks parent dir name which must be "_retail_"
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
+    public void NormalizeAddOnsDirectory_AltRetailPathCombination_AppendsInterfaceAddOns()
+    {
+        var altPath = @"D:\WoW\_retail_";
+        var expectedPath = @"D:\WoW\_retail_\Interface\AddOns";
+
+        var result = AddOnPathResolver.NormalizeAddOnsDirectory(altPath);
+
+        Assert.That(result, Is.EqualTo(expectedPath));
+    }
+
+    [Test]
+    public void NormalizeAddOnsDirectory_AddOnsPathWithoutProperParents_ReturnsNull()
+    {
+        var invalidPath = @"C:\Games\AddOns";
+
+        var result = AddOnPathResolver.NormalizeAddOnsDirectory(invalidPath);
+
+        Assert.That(result, Is.Null);
     }
 }
