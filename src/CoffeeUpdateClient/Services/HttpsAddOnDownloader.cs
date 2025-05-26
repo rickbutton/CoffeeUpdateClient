@@ -10,7 +10,7 @@ public class HttpsAddOnDownloader : IAddOnDownloader
 {
     private readonly string BaseUri = "coffee-auras.nyc3.cdn.digitaloceanspaces.com";
 
-    public HttpsAddOnDownloader() {}
+    public HttpsAddOnDownloader() { }
 
     public async Task<AddOnManifest?> GetLatestManifest()
     {

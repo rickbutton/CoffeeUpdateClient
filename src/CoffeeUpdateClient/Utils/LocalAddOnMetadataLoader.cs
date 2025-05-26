@@ -17,7 +17,7 @@ public class LocalAddOnMetadataLoader
         NotFound,
         Error,
     }
-    
+
     // List of possible TOC file name formats
     private readonly string[] _tocFileFormats = new string[]
     {
@@ -25,7 +25,7 @@ public class LocalAddOnMetadataLoader
         "{0}_Mainline.toc",
         "{0}_Standard.toc"
     };
-    
+
     public LocalAddOnMetadataLoader(IEnv env)
     {
         _env = env;
@@ -46,7 +46,7 @@ public class LocalAddOnMetadataLoader
             Log.Warning("AddOn directory does not exist: {Path}", addOnPath);
             return (null, LocalAddOnMetadataStatus.NotFound);
         }
-        
+
         // Try each possible TOC filename format
         foreach (var format in _tocFileFormats)
         {
@@ -75,7 +75,7 @@ public class LocalAddOnMetadataLoader
                 Version = version,
             }, LocalAddOnMetadataStatus.Found);
         }
-        
+
         Log.Warning("No valid TOC file found for AddOn: {AddOnName}", name);
         return (null, LocalAddOnMetadataStatus.Error);
     }
