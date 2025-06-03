@@ -8,7 +8,7 @@ namespace CoffeeUpdateClient.Services;
 
 public class HttpsAddOnDownloader : IAddOnDownloader
 {
-    private readonly string BaseUri = "coffee-auras.nyc3.cdn.digitaloceanspaces.com";
+    private readonly string BaseUri = "coffee-auras.nyc3.digitaloceanspaces.com";
 
     public HttpsAddOnDownloader() { }
 
@@ -28,14 +28,15 @@ public class HttpsAddOnDownloader : IAddOnDownloader
         return null;
     }
 
-    public async Task<Stream?> GetAddOn(AddOnMetadata metadata)
+    public async Task<AddOnBundle?> GetAddOnBundle(AddOnMetadata metadata)
     {
         var url = $"https://{BaseUri}/addons/{metadata.Name}-{metadata.Version}.zip";
         using var client = new HttpClient();
         var response = await client.GetAsync(url);
         if (response.IsSuccessStatusCode)
         {
-            return await response.Content.ReadAsStreamAsync();
+            var data = await response.Content.ReadAsStreamAsync();
+            return new AddOnBundle(metadata, data);
         }
         else
         {

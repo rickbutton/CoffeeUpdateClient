@@ -49,8 +49,20 @@ public class AppViewModel : ReactiveObject
 
     public ReactiveCommand<Unit, string?> Browse { get; }
 
-    public AppViewModel(IConfigService configService, IAddOnDownloader addOnDownloader, LocalAddOnMetadataLoader localAddOnMetadataLoader)
+    public ReactiveCommand<Unit, Unit> Update { get; }
+
+    private readonly ObservableAsPropertyHelper<bool> _isUpdating;
+    public bool IsUpdating => _isUpdating.Value;
+
+    private readonly ObservableAsPropertyHelper<bool> _canUpdate;
+    public bool CanUpdate => _canUpdate.Value;
+
+    private readonly IAddOnDownloader _addOnDownloader;
+
+    public AppViewModel(IConfigService configService, IAddOnDownloader addOnDownloader, LocalAddOnMetadataLoader localAddOnMetadataLoader, AddOnBundleInstaller AddOnBundleInstaller)
     {
+        _addOnDownloader = addOnDownloader;
+
         _addOnsPath = configService.Instance.AddOnsPath ?? string.Empty;
         _normalizedAddOnsPath = this
             .WhenAnyValue(x => x.AddOnsPath)
@@ -80,13 +92,8 @@ public class AppViewModel : ReactiveObject
             })
             .ToProperty(this, x => x.AddOnsPathState);
         _remoteAddOnManifest = Observable.Timer(TimeSpan.Zero, TimeSpan.FromMinutes(5))
-            .SelectMany(async x =>
-            {
-                Log.Information("Fetching addon manifest");
-                var manifest = await addOnDownloader.GetLatestManifest().ConfigureAwait(false);
-                Log.Information("addon manifest fetched: {Manifest}", manifest);
-                return manifest;
-            })
+            .SelectMany(FetchLatestManifest)
+            .ObserveOn(RxApp.MainThreadScheduler)
             .ToProperty(this, x => x.RemoteAddOnManifest);
         _remoteAddOnManifestIsAvailable = this
             .WhenAnyValue(x => x.RemoteAddOnManifest)
@@ -98,29 +105,62 @@ public class AppViewModel : ReactiveObject
             .Select(x =>
             {
                 var (manifest, normalizedPath) = x;
-                return manifest?.AddOns != null ? manifest.AddOns.Select(y => new AddOnViewModel(normalizedPath, y, localAddOnMetadataLoader)) : Enumerable.Empty<AddOnViewModel>();
+                return manifest?.AddOns != null ? manifest.AddOns.Select(y => new AddOnViewModel(normalizedPath, y, localAddOnMetadataLoader, addOnDownloader, AddOnBundleInstaller)) : Enumerable.Empty<AddOnViewModel>();
             })
+            .ObserveOn(RxApp.MainThreadScheduler)
             .ToProperty(this, x => x.AddOns);
+        _isUpdating = this
+            .WhenAnyValue(x => x.AddOns)
+            .Select(x => x?.Select(y => y.IsInstalling).Any(z => z) ?? false)
+            .ToProperty(this, x => x.IsUpdating);
+        _canUpdate = this
+            .WhenAnyValue(x => x.AddOns)
+            .CombineLatest(this.WhenAnyValue(x => x.AddOnsPathState))
+            .Select(x =>
+            {
+                var (addons, pathState) = x;
+                return pathState == AddOnsPathStateEnum.Valid && (addons?.Any(y => y.CanInstallAddOn) ?? false);
+            })
+            .ToProperty(this, x => x.CanUpdate);
 
-        Browse = ReactiveCommand.Create<Unit, string?>((_) =>
+        Browse = ReactiveCommand.Create(BrowseForAddOnsPath);
+        Update = ReactiveCommand.Create(DoUpdate);
+    }
+
+    private async Task<AddOnManifest?> FetchLatestManifest(long _)
+    {
+        Log.Information("Fetching addon manifest");
+        var manifest = await _addOnDownloader.GetLatestManifest().ConfigureAwait(false);
+        Log.Information("addon manifest fetched: {Manifest}", manifest);
+        return manifest;
+    }
+
+    private string? BrowseForAddOnsPath()
+    {
+        var dialog = new OpenFolderDialog();
+        if (!string.IsNullOrEmpty(NormalizedAddOnsPath))
         {
-            var dialog = new OpenFolderDialog();
-            if (!string.IsNullOrEmpty(NormalizedAddOnsPath))
-            {
-                dialog.InitialDirectory = NormalizedAddOnsPath;
-            }
+            dialog.InitialDirectory = NormalizedAddOnsPath;
+        }
 
-            if (dialog.ShowDialog() == true)
-            {
-                AddOnsPath = dialog.FolderName;
-                UserHasSelectedPath = true;
-                Log.Information("User selected path: {Path}", AddOnsPath);
-                return AddOnsPath;
-            }
-            else
-            {
-                return null;
-            }
-        });
+        if (dialog.ShowDialog() == true)
+        {
+            AddOnsPath = dialog.FolderName;
+            UserHasSelectedPath = true;
+            Log.Information("User selected path: {Path}", AddOnsPath);
+            return AddOnsPath;
+        }
+        else
+        {
+            return null;
+        }
+    }
+
+    private void DoUpdate()
+    {
+        foreach (var addOn in AddOns)
+        {
+            addOn.InstallAddOn.Execute().Subscribe();
+        }
     }
 }

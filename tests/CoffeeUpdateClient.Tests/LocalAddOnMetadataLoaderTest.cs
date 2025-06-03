@@ -34,7 +34,7 @@ public class LocalAddOnMetadataLoaderTest
         Assert.That(metadata, Is.Not.Null);
         Assert.That(metadata!.Name, Is.EqualTo(addOnName));
         Assert.That(metadata.Version, Is.EqualTo(addOnVersion));
-        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.LocalAddOnMetadataStatus.Found));
+        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.Status.Found));
     }
 
     [Test]
@@ -62,7 +62,7 @@ public class LocalAddOnMetadataLoaderTest
         Assert.That(metadata, Is.Not.Null);
         Assert.That(metadata!.Name, Is.EqualTo(addOnName));
         Assert.That(metadata.Version, Is.EqualTo(addOnVersion));
-        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.LocalAddOnMetadataStatus.Found));
+        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.Status.Found));
     }
 
     [Test]
@@ -92,7 +92,7 @@ public class LocalAddOnMetadataLoaderTest
         Assert.That(metadata, Is.Not.Null);
         Assert.That(metadata.Name, Is.EqualTo(addOnName));
         Assert.That(metadata.Version, Is.EqualTo(addOnVersion));
-        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.LocalAddOnMetadataStatus.Found));
+        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.Status.Found));
     }
 
     [Test]
@@ -122,7 +122,7 @@ public class LocalAddOnMetadataLoaderTest
         Assert.That(metadata, Is.Not.Null);
         Assert.That(metadata!.Name, Is.EqualTo(addOnName));
         Assert.That(metadata.Version, Is.EqualTo(addOnVersion));
-        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.LocalAddOnMetadataStatus.Found));
+        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.Status.Found));
     }
 
     [Test]
@@ -138,7 +138,7 @@ public class LocalAddOnMetadataLoaderTest
         var (metadata, status) = await loader.LoadAddOnMetadata(addOnsPath, addOnName);
 
         Assert.That(metadata, Is.Null);
-        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.LocalAddOnMetadataStatus.NotFound));
+        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.Status.NotFound));
     }
 
     [Test]
@@ -167,7 +167,7 @@ public class LocalAddOnMetadataLoaderTest
 
         // Verify
         Assert.That(metadata, Is.Null);
-        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.LocalAddOnMetadataStatus.Error));
+        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.Status.Error));
     }
 
     [Test]
@@ -204,6 +204,6 @@ public class LocalAddOnMetadataLoaderTest
         Assert.That(metadata, Is.Not.Null);
         Assert.That(metadata!.Name, Is.EqualTo(addOnName));
         Assert.That(metadata.Version, Is.EqualTo(defaultVersion));
-        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.LocalAddOnMetadataStatus.Found));
+        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.Status.Found));
     }
 }

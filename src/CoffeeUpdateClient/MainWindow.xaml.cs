@@ -14,10 +14,10 @@ namespace CoffeeUpdateClient;
 
 public partial class MainWindow
 {
-    public MainWindow(IConfigService configService, IAddOnDownloader addOnDownloader, LocalAddOnMetadataLoader localAddOnMetadataLoader)
+    public MainWindow(IConfigService configService, IAddOnDownloader addOnDownloader, LocalAddOnMetadataLoader localAddOnMetadataLoader, AddOnBundleInstaller AddOnBundleInstaller)
     {
         InitializeComponent();
-        ViewModel = new AppViewModel(configService, addOnDownloader, localAddOnMetadataLoader);
+        ViewModel = new AppViewModel(configService, addOnDownloader, localAddOnMetadataLoader, AddOnBundleInstaller);
 
         this.WhenActivated(disposableRegistration =>
         {
@@ -39,9 +39,8 @@ public partial class MainWindow
                 .DisposeWith(disposableRegistration);
 
             this.OneWayBind(ViewModel,
-                vm => vm.AddOnsPathState,
-                view => view.UpdateButton.IsEnabled,
-                value => value == AppViewModel.AddOnsPathStateEnum.Valid)
+                vm => vm.CanUpdate,
+                view => view.UpdateButton.IsEnabled)
                 .DisposeWith(disposableRegistration);
 
             this.OneWayBind(ViewModel,
@@ -88,6 +87,11 @@ public partial class MainWindow
                 .DisposeWith(disposableRegistration);
 
             VersionTextBlock.Text = $"v{Assembly.GetExecutingAssembly().GetName().Version}";
+
+            this.BindCommand(ViewModel,
+                vm => vm.Update,
+                view => view.UpdateButton)
+                .DisposeWith(disposableRegistration);
         });
     }
 }

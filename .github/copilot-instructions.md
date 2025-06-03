@@ -1,18 +1,29 @@
 # CoffeeUpdateClient - GitHub Copilot Instructions
 
 ## Project Context
+
 CoffeeUpdateClient is a WPF application that automatically updates World of Warcraft addons for players in the Coffee guild on US-Illidan. It features self-updating capabilities and uses a test-driven development approach with dependency injection and mocking.
 
 **Technology Stack:**
+
 - .NET/C# WPF Application
 - ReactiveUI for MVVM data binding
 - NUnit 3 for unit testing
 - System.IO.Abstractions for file system operations
 - Dependency injection with custom mock implementations
 
+## Chat and Reply Guidelines
+
+Be brief and focused in responses, without unneccessary formal language.
+
 ## Code Generation Guidelines
 
+### 0. .NET Guidelines
+
+"Nullable" is enabled. Unless specified via the `?` operator, assume that all variables are non-nullable. Use `?` only when the variable can be null. Null checks are not required for non-nullable variables.
+
 ### 1. Test-Driven Development (TDD)
+
 When generating new features:
 ```csharp
 // ALWAYS generate corresponding unit tests
@@ -31,7 +42,9 @@ public async Task MethodName_Scenario_ExpectedBehavior()
 **Test Structure:** Organize tests with setup, execution, and verification sections separated by blank lines. Do NOT use //Arrange, //Act, //Assert comments.
 
 ### 2. File System Operations
+
 **Required Pattern:**
+
 ```csharp
 // ❌ NEVER use direct System.IO
 // File.WriteAllText("path", content);
@@ -42,7 +55,9 @@ _fileSystem.File.WriteAllText("path", content);
 ```
 
 ### 3. Service Singleton Pattern
+
 **Initialization Pattern:**
+
 ```csharp
 // Service must implement initialization
 public async Task LoadConfigSingleton()
@@ -63,14 +78,6 @@ public static ServiceClass Instance
 ```
 
 ### 4. WPF/ReactiveUI Integration
-**View Activation Pattern:**
-```csharp
-// Views should use WhenActivated for proper disposal
-this.WhenActivated(disposableRegistration =>
-{
-    // All bindings go here and are disposed when view deactivates
-});
-```
 
 **Data Binding Patterns:**
 ```csharp
@@ -106,6 +113,7 @@ this.WhenAnyValue(x => x.ViewModel.Property1)
 ```
 
 **ViewModel Properties:**
+
 ```csharp
 // ✅ Use RaiseAndSetIfChanged for properties with backing fields
 private string _propertyName;
@@ -222,7 +230,7 @@ public class AddonUpdateService
 ```
 
 ### Formatting
-```bash
+```powershell
 # Format a specific file
 dotnet format --include src/CoffeeUpdateClient/Services/AddonUpdateService.cs
 ```
@@ -255,14 +263,17 @@ public async Task ProcessAsync() { /* ... */ }
 
 ## Build and Test Commands
 
+When running commands in a terminal as an agent, assume that PowerShell is used. Don't `cd` into the project directory; run commands directly from the root of the repository.
+
 ### Building the Project
-```bash
+
+```powershell
 dotnet build
 ```
 Use this command to compile the entire solution and verify that all code compiles successfully.
 
 ### Running Tests
-```bash
+```powershell
 dotnet test
 ```
 Use this command to run all unit tests in the test projects. Always run tests after making changes to ensure no regressions are introduced.

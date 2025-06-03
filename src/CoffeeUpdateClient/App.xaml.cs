@@ -31,6 +31,7 @@ public partial class App : Application
         // utilities
         services.AddSingleton<AppDataFolder>();
         services.AddSingleton<LocalAddOnMetadataLoader>();
+        services.AddSingleton<AddOnBundleInstaller>();
 
         // main window
         services.AddSingleton<MainWindow>();
