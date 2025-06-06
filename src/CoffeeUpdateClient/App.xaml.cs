@@ -4,6 +4,7 @@ using CoffeeUpdateClient.Services;
 using CoffeeUpdateClient.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
+using CoffeeUpdateClient.Models;
 
 namespace CoffeeUpdateClient;
 
@@ -54,8 +55,9 @@ public partial class App : Application
             .CreateLogger();
 
         Log.Information("starting CoffeeUpdateClient");
-        var config = await provider.GetRequiredService<IConfigService>().LoadConfigSingleton();
-        Log.Information("loaded config", config);
+        var config = await provider.GetRequiredService<IConfigService>().GetConfigAsync();
+        Config.InitConfigSingleton(config);
+        Log.Verbose("loaded config", config);
 
         var window = provider.GetRequiredService<MainWindow>();
         window.Show();

@@ -10,7 +10,7 @@ using CoffeeUpdateClient.Models;
 
 namespace CoffeeUpdateClient.Tests;
 
-public class AddOnBundleInstallerTest
+public class AddOnBundleInstallerTest : ConfigTestBase
 {
     private MockEnv _env = null!;
     private AddOnBundleInstaller _installer = null!;
@@ -21,7 +21,7 @@ public class AddOnBundleInstallerTest
     {
         _env = new MockEnv();
         _installer = new AddOnBundleInstaller(_env);
-        _addOnsPath = _env.FileSystem.Path.Combine("C:", "Games", "World of Warcraft", "_retail_", "Interface", "AddOns");
+        _addOnsPath = Config.Instance.AddOnsPath;
         _env.FileSystem.Directory.CreateDirectory(_addOnsPath);
     }
 
@@ -53,17 +53,17 @@ public class AddOnBundleInstallerTest
     [Test]
     public void InstallAddOn_ValidBundle_ExtractsFiles()
     {
-        var addOnName = "MyAddon";
+        var addOnName = "MyAddOn";
         var filesInZip = new[] { "file1.lua", "subdir/file2.txt" };
         var addOnBundle = CreateBundle(addOnName, filesInZip);
 
-        _installer.InstallAddOn(_addOnsPath, addOnBundle);
+        _installer.InstallAddOn(addOnBundle);
 
-        var expectedAddonPath = _env.FileSystem.Path.Combine(_addOnsPath, addOnName);
-        Assert.That(_env.FileSystem.Directory.Exists(expectedAddonPath), Is.True);
+        var expectedAddOnPath = _env.FileSystem.Path.Combine(_addOnsPath, addOnName);
+        Assert.That(_env.FileSystem.Directory.Exists(expectedAddOnPath), Is.True);
         foreach (var file in filesInZip)
         {
-            var expectedFilePath = _env.FileSystem.Path.Combine(expectedAddonPath, file);
+            var expectedFilePath = _env.FileSystem.Path.Combine(expectedAddOnPath, file);
             Assert.That(_env.FileSystem.File.Exists(expectedFilePath), Is.True, $"Expected file '{expectedFilePath}' not found.");
             Assert.That(_env.FileSystem.File.ReadAllText(expectedFilePath), Is.EqualTo($"Content of {file}"));
         }
@@ -72,18 +72,18 @@ public class AddOnBundleInstallerTest
     [Test]
     public void InstallAddOn_OverwritesExistingFiles()
     {
-        var addOnName = "MyAddon";
+        var addOnName = "MyAddOn";
         var filesInZip = new[] { "file1.lua" };
 
         // Create an existing file
-        var targetAddonDir = _env.FileSystem.Path.Combine(_addOnsPath, addOnName);
-        _env.FileSystem.Directory.CreateDirectory(targetAddonDir);
-        var existingFilePath = _env.FileSystem.Path.Combine(targetAddonDir, "file1.lua");
+        var targetAddOnDir = _env.FileSystem.Path.Combine(_addOnsPath, addOnName);
+        _env.FileSystem.Directory.CreateDirectory(targetAddOnDir);
+        var existingFilePath = _env.FileSystem.Path.Combine(targetAddOnDir, "file1.lua");
         _env.FileSystem.File.WriteAllText(existingFilePath, "Old content");
 
         var addOnBundle = CreateBundle(addOnName, filesInZip);
 
-        _installer.InstallAddOn(_addOnsPath, addOnBundle);
+        _installer.InstallAddOn(addOnBundle);
         
         Assert.That(_env.FileSystem.File.ReadAllText(existingFilePath), Is.EqualTo("Content of file1.lua"));
     }
@@ -91,20 +91,20 @@ public class AddOnBundleInstallerTest
     [Test]
     public void InstallAddOn_DeletesExtraFilesNotInBundle()
     {
-        var addOnName = "MyAddon";
+        var addOnName = "MyAddOn";
         var filesInZip = new[] { "file1.lua" };
         
-        var targetAddonDir = _env.FileSystem.Path.Combine(_addOnsPath, addOnName);
-        _env.FileSystem.Directory.CreateDirectory(targetAddonDir);
-        var extraFilePath = _env.FileSystem.Path.Combine(targetAddonDir, "extraFile.txt");
+        var targetAddOnDir = _env.FileSystem.Path.Combine(_addOnsPath, addOnName);
+        _env.FileSystem.Directory.CreateDirectory(targetAddOnDir);
+        var extraFilePath = _env.FileSystem.Path.Combine(targetAddOnDir, "extraFile.txt");
         _env.FileSystem.File.WriteAllText(extraFilePath, "This file should be deleted");
-         var extraFileInSubdirPath = _env.FileSystem.Path.Combine(targetAddonDir, "subdir", "extra2.txt");
+         var extraFileInSubdirPath = _env.FileSystem.Path.Combine(targetAddOnDir, "subdir", "extra2.txt");
         _env.FileSystem.Directory.CreateDirectory(_env.FileSystem.Path.GetDirectoryName(extraFileInSubdirPath)!);
         _env.FileSystem.File.WriteAllText(extraFileInSubdirPath, "This file should also be deleted");
 
 
         var addOnBundle = CreateBundle(addOnName, filesInZip);
-        _installer.InstallAddOn(_addOnsPath, addOnBundle);
+        _installer.InstallAddOn(addOnBundle);
 
         Assert.That(_env.FileSystem.File.Exists(extraFilePath), Is.False, "Extra file was not deleted.");
         Assert.That(_env.FileSystem.File.Exists(extraFileInSubdirPath), Is.False, "Extra file in subdirectory was not deleted.");
@@ -114,12 +114,12 @@ public class AddOnBundleInstallerTest
     [Test]
     public void InstallAddOn_BundleWithIncorrectRootFolder_ThrowsInvalidOperationException()
     {
-        var addOnName = "MyAddon";
+        var addOnName = "MyAddOn";
         var filesInZip = new[] { "file1.lua" };
         var addOnBundle = CreateBundle(addOnName, filesInZip, "WrongRootFolder");
 
-        var ex = Assert.Throws<InvalidOperationException>(() => _installer.InstallAddOn(_addOnsPath, addOnBundle));
-        Assert.That(ex?.Message, Does.Contain($"Addon bundle for '{addOnName}' must contain a single root folder named '{addOnName}'. Found: WrongRootFolder"));
+        var ex = Assert.Throws<InvalidOperationException>(() => _installer.InstallAddOn(addOnBundle));
+        Assert.That(ex?.Message, Does.Contain($"AddOn bundle for '{addOnName}' must contain a single root folder named '{addOnName}'. Found: WrongRootFolder"));
     }
 
     [Test]
@@ -133,14 +133,14 @@ public class AddOnBundleInstallerTest
         }
         memoryStream.Seek(0, SeekOrigin.Begin);
         
-        var addOnName = "MyAddon";
+        var addOnName = "MyAddOn";
         var bundle = new AddOnBundle(new AddOnMetadata()
         {
             Name = addOnName,
             Version = "v1.0.0",
         }, memoryStream);
-        var ex = Assert.Throws<InvalidOperationException>(() => _installer.InstallAddOn(_addOnsPath, bundle));
-        Assert.That(ex?.Message, Does.Contain($"Addon bundle for '{addOnName}' must contain a single root folder named '{addOnName}'. Found: Root1, Root2"));
+        var ex = Assert.Throws<InvalidOperationException>(() => _installer.InstallAddOn(bundle));
+        Assert.That(ex?.Message, Does.Contain($"AddOn bundle for '{addOnName}' must contain a single root folder named '{addOnName}'. Found: Root1, Root2"));
     }
 
     [Test]
@@ -153,13 +153,13 @@ public class AddOnBundleInstallerTest
         }
         memoryStream.Seek(0, SeekOrigin.Begin);
 
-        var addOnName = "MyAddon";
+        var addOnName = "MyAddOn";
         var bundle = new AddOnBundle(new AddOnMetadata()
         {
             Name = addOnName,
             Version = "v1.0.0",
         }, memoryStream);
-        var ex = Assert.Throws<InvalidOperationException>(() => _installer.InstallAddOn(_addOnsPath, bundle));
-        Assert.That(ex?.Message, Does.Contain($"Addon bundle for '{addOnName}' must contain a single root folder named '{addOnName}'. Found: "));
+        var ex = Assert.Throws<InvalidOperationException>(() => _installer.InstallAddOn(bundle));
+        Assert.That(ex?.Message, Does.Contain($"AddOn bundle for '{addOnName}' must contain a single root folder named '{addOnName}'. Found: "));
     }
 }

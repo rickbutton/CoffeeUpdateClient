@@ -5,6 +5,6 @@ namespace CoffeeUpdateClient.Services;
 
 public interface IAddOnDownloader
 {
-    Task<AddOnManifest?> GetLatestManifest();
-    Task<AddOnBundle?> GetAddOnBundle(AddOnMetadata metadata);
+    Task<AddOnManifest?> GetLatestManifestAsync();
+    Task<AddOnBundle?> GetAddOnBundleAsync(AddOnMetadata metadata);
 }

@@ -7,10 +7,10 @@ using NUnit.Framework;
 
 namespace CoffeeUpdateClient.Tests;
 
-public class LocalAddOnMetadataLoaderTest
+public class LocalAddOnMetadataLoaderTest : ConfigTestBase
 {
     [Test]
-    public async Task LoadAddOnMetadata_StandardTOCFile_ReturnsAddOnMetadata()
+    public async Task LoadAddOnMetadata_StandardTOCFile_ReturnsAddOnMetadataAsync()
     {
         // Setup test data
         var mockEnv = new MockEnv();
@@ -28,7 +28,7 @@ public class LocalAddOnMetadataLoaderTest
         var loader = new LocalAddOnMetadataLoader(mockEnv);
 
         // Execute
-        var (metadata, status) = await loader.LoadAddOnMetadata(addOnsPath, addOnName);
+        var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
 
         // Verify
         Assert.That(metadata, Is.Not.Null);
@@ -38,7 +38,7 @@ public class LocalAddOnMetadataLoaderTest
     }
 
     [Test]
-    public async Task LoadAddOnMetadata_MainlineTOCFile_ReturnsAddOnMetadata()
+    public async Task LoadAddOnMetadata_MainlineTOCFile_ReturnsAddOnMetadataAsync()
     {
         // Setup test data
         var mockEnv = new MockEnv();
@@ -56,7 +56,7 @@ public class LocalAddOnMetadataLoaderTest
         var loader = new LocalAddOnMetadataLoader(mockEnv);
 
         // Execute
-        var (metadata, status) = await loader.LoadAddOnMetadata(addOnsPath, addOnName);
+        var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
 
         // Verify
         Assert.That(metadata, Is.Not.Null);
@@ -66,12 +66,10 @@ public class LocalAddOnMetadataLoaderTest
     }
 
     [Test]
-    public async Task LoadAddOnMetadata_StandardWoWTOCFile_ReturnsAddOnMetadata()
+    public async Task LoadAddOnMetadata_StandardWoWTOCFile_ReturnsAddOnMetadataAsync()
     {
         // Setup test data
         var mockEnv = new MockEnv();
-        var mockConfigService = new MockConfigService();
-        await mockConfigService.LoadConfigSingleton();
 
         var addOnName = "TestAddOn";
         var addOnVersion = "3.0.0";
@@ -86,7 +84,7 @@ public class LocalAddOnMetadataLoaderTest
         var loader = new LocalAddOnMetadataLoader(mockEnv);
 
         // Execute
-        var (metadata, status) = await loader.LoadAddOnMetadata(addOnsPath, addOnName);
+        var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
 
         // Verify
         Assert.That(metadata, Is.Not.Null);
@@ -96,7 +94,7 @@ public class LocalAddOnMetadataLoaderTest
     }
 
     [Test]
-    public async Task LoadAddOnMetadata_FallbackToAlternativeTOCFiles_ReturnsAddOnMetadata()
+    public async Task LoadAddOnMetadata_FallbackToAlternativeTOCFiles_ReturnsAddOnMetadataAsync()
     {
         // Setup test data
         var mockEnv = new MockEnv();
@@ -116,7 +114,7 @@ public class LocalAddOnMetadataLoaderTest
         var loader = new LocalAddOnMetadataLoader(mockEnv);
 
         // Execute
-        var (metadata, status) = await loader.LoadAddOnMetadata(addOnsPath, addOnName);
+        var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
 
         // Verify
         Assert.That(metadata, Is.Not.Null);
@@ -126,23 +124,22 @@ public class LocalAddOnMetadataLoaderTest
     }
 
     [Test]
-    public async Task LoadAddOnMetadata_TOCFileDoesNotExist_ReturnsNull()
+    public async Task LoadAddOnMetadata_TOCFileDoesNotExist_ReturnsNullAsync()
     {
         var mockEnv = new MockEnv();
 
-        var addOnsPath = "C:\\World of Warcraft\\_retail_\\Interface\\AddOns";
         var addOnName = "NonExistentAddOn";
 
         var loader = new LocalAddOnMetadataLoader(mockEnv);
 
-        var (metadata, status) = await loader.LoadAddOnMetadata(addOnsPath, addOnName);
+        var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
 
         Assert.That(metadata, Is.Null);
         Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.Status.NotFound));
     }
 
     [Test]
-    public async Task LoadAddOnMetadata_TOCFilesExistButNoVersion_ReturnsNull()
+    public async Task LoadAddOnMetadata_TOCFilesExistButNoVersion_ReturnsNullAsync()
     {
         // Setup test data
         var mockEnv = new MockEnv();
@@ -163,7 +160,7 @@ public class LocalAddOnMetadataLoaderTest
         var loader = new LocalAddOnMetadataLoader(mockEnv);
 
         // Execute
-        var (metadata, status) = await loader.LoadAddOnMetadata(addOnsPath, addOnName);
+        var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
 
         // Verify
         Assert.That(metadata, Is.Null);
@@ -171,7 +168,7 @@ public class LocalAddOnMetadataLoaderTest
     }
 
     [Test]
-    public async Task LoadAddOnMetadata_PrioritizesDefaultTOCOverAlternatives()
+    public async Task LoadAddOnMetadata_PrioritizesDefaultTOCOverAlternativesAsync()
     {
         // Setup test data
         var mockEnv = new MockEnv();
@@ -198,7 +195,7 @@ public class LocalAddOnMetadataLoaderTest
         var loader = new LocalAddOnMetadataLoader(mockEnv);
 
         // Execute
-        var (metadata, status) = await loader.LoadAddOnMetadata(addOnsPath, addOnName);
+        var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
 
         // Verify - should use the default TOC file (first in the list)
         Assert.That(metadata, Is.Not.Null);

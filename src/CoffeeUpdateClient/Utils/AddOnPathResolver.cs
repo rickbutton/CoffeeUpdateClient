@@ -37,7 +37,7 @@ public class AddOnPathResolver
 
         if (IsValidAddOnsPath(segments))
         {
-            Log.Information($"NormalizeAddOnsDirectory: Path is already valid. input='{path}', output='{path}'");
+            Log.Debug($"NormalizeAddOnsDirectory: Path is already valid. input='{path}', output='{path}'");
             return path;
         }
 
@@ -65,14 +65,14 @@ public class AddOnPathResolver
                 {
                     output = Path.Join(output, segmentToAppend);
                 }
-                Log.Information($"NormalizeAddOnsDirectory: Pattern matched. input='{path}', output='{output}'");
+                Log.Debug($"NormalizeAddOnsDirectory: Pattern matched. input='{path}', output='{output}'");
                 break;
             }
         }
 
         if (output == null)
         {
-            Log.Information($"NormalizeAddOnsDirectory: No pattern matched. input='{path}', output=null");
+            Log.Debug($"NormalizeAddOnsDirectory: No pattern matched. input='{path}', output=null");
         }
 
         return output;

@@ -12,7 +12,7 @@ public class HttpsAddOnDownloader : IAddOnDownloader
 
     public HttpsAddOnDownloader() { }
 
-    public async Task<AddOnManifest?> GetLatestManifest()
+    public async Task<AddOnManifest?> GetLatestManifestAsync()
     {
         using var client = new HttpClient();
         var response = await client.GetAsync($"https://{BaseUri}/manifest.json");
@@ -28,7 +28,7 @@ public class HttpsAddOnDownloader : IAddOnDownloader
         return null;
     }
 
-    public async Task<AddOnBundle?> GetAddOnBundle(AddOnMetadata metadata)
+    public async Task<AddOnBundle?> GetAddOnBundleAsync(AddOnMetadata metadata)
     {
         var url = $"https://{BaseUri}/addons/{metadata.Name}-{metadata.Version}.zip";
         using var client = new HttpClient();

@@ -3,6 +3,8 @@ using System.Text.Json;
 using CoffeeUpdateClient.Models;
 using CoffeeUpdateClient.Utils;
 using Windows.System;
+using Serilog;
+using System.IO;
 
 namespace CoffeeUpdateClient.Services;
 
@@ -37,7 +39,7 @@ public class FileSystemConfigService : IConfigService
         return config;
     }
 
-    private async Task<Config> LoadFromPath(string path)
+    private async Task<Config> LoadFromPathAsync(string path)
     {
         using var stream = _env.FileSystem.File.OpenRead(path);
         var config = await JsonSerializer.DeserializeAsync<Config>(stream);
@@ -54,39 +56,33 @@ public class FileSystemConfigService : IConfigService
 
     private void CreateDefaultConfigIfNotExists()
     {
-        _appDataFolder.EnsurePathExists();
         var path = GetUserConfigPath();
         if (!_env.FileSystem.File.Exists(path))
         {
             var config = CreateDefaultConfig();
-            using var stream = _env.FileSystem.File.Create(path);
-            JsonSerializer.Serialize(stream, config);
+            SaveConfig(config);
         }
     }
 
-    private async Task<Config> LoadFromAppData()
+    public async Task<Config> GetConfigAsync()
     {
         CreateDefaultConfigIfNotExists();
-        return await LoadFromPath(GetUserConfigPath());
+        var config = await LoadFromPathAsync(GetUserConfigPath());
+        config.ConfigUpdated += OnConfigUpdated;
+        return config;
     }
 
-    private Config? _instance;
-
-    public async Task<Config> LoadConfigSingleton()
+    private void OnConfigUpdated(Config config)
     {
-        _instance ??= await LoadFromAppData();
-        return _instance;
+        SaveConfig(config);
+        Log.Information("configuration saved", config);
     }
 
-    public Config Instance
+    private void SaveConfig(Config config)
     {
-        get
-        {
-            if (_instance == null)
-            {
-                throw new InvalidOperationException("ApplicationConfig not loaded. Call LoadConfigSingleton() first.");
-            }
-            return _instance!;
-        }
+        _appDataFolder.EnsurePathExists();
+        var path = GetUserConfigPath();
+        using var stream = _env.FileSystem.File.Open(path, FileMode.Create);
+        JsonSerializer.Serialize(stream, config);
     }
 }

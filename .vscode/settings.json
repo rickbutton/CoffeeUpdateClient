@@ -1,12 +1,7 @@
 {
     "dotnet.preferCSharpExtension": true,
-    "nunitTestRunner.projectsPatterns": [
-        "tests/**/*.Tests.dll"
-    ],
-    "nunitTestRunner.discoveryOnStartup": true,
-    "nunitTestRunner.fsWatcher.patterns": {
-        "tests": {
-            "pattern": "**/*.cs",
-        }
-    }
+    "csharp.debug.logging.moduleLoad": false,
+    "github.copilot.enable": {
+        "*": false,
+    },
 }

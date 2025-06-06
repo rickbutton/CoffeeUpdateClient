@@ -4,6 +4,5 @@ namespace CoffeeUpdateClient.Services;
 
 public interface IConfigService
 {
-    public Task<Config> LoadConfigSingleton();
-    public Config Instance { get; }
+    public Task<Config> GetConfigAsync();
 }

@@ -17,12 +17,15 @@ public class AddOnBundleInstaller
         _fileSystem = env.FileSystem;
     }
 
-    public void InstallAddOn(string addOnsPath, AddOnBundle bundle)
+    public bool InstallAddOn(AddOnBundle bundle)
     {
+        var addOnsPath = Config.Instance.AddOnsPath;
+
         var tempExtractPath = _fileSystem.Path.Combine(_fileSystem.Path.GetTempPath(), $"{bundle.Metadata.Name}-Install-{Guid.NewGuid().ToString()}");
         _fileSystem.Directory.CreateDirectory(tempExtractPath);
         Log.Information("Extracting add-on bundle for '{AddOnName}' to temporary path: {TempPath}", bundle.Metadata.Name, tempExtractPath);
 
+        bool success = false;
         try
         {
             using (var archive = new ZipArchive(bundle.Data, ZipArchiveMode.Read))
@@ -34,13 +37,13 @@ public class AddOnBundleInstaller
 
                 if (rootEntries.Count != 1 || !string.Equals(rootEntries[0], bundle.Metadata.Name, StringComparison.OrdinalIgnoreCase))
                 {
-                    throw new InvalidOperationException($"Addon bundle for '{bundle.Metadata.Name}' must contain a single root folder named '{bundle.Metadata.Name}'. Found: {string.Join(", ", rootEntries)}");
+                    throw new InvalidOperationException($"AddOn bundle for '{bundle.Metadata.Name}' must contain a single root folder named '{bundle.Metadata.Name}'. Found: {string.Join(", ", rootEntries)}");
                 }
 
                 foreach (var entry in archive.Entries)
                 {
                     var fullPath = _fileSystem.Path.Combine(tempExtractPath, entry.FullName).Replace("/", _fileSystem.Path.DirectorySeparatorChar.ToString());
-                    Log.Information("Processing entry: {EntryName} -> {FullPath}", entry.Name, fullPath);
+                    Log.Verbose("Processing entry: {EntryName} -> {FullPath}", entry.Name, fullPath);
 
                     if (entry.Name == "")
                     {
@@ -66,15 +69,16 @@ public class AddOnBundleInstaller
                     }
                 }
 
-                var sourceAddonDir = _fileSystem.Path.Combine(tempExtractPath, bundle.Metadata.Name);
-                var targetAddonDir = _fileSystem.Path.Combine(addOnsPath, bundle.Metadata.Name);
+                var sourceAddOnDir = _fileSystem.Path.Combine(tempExtractPath, bundle.Metadata.Name);
+                var targetAddOnDir = _fileSystem.Path.Combine(addOnsPath, bundle.Metadata.Name);
 
-                if (_fileSystem.Directory.Exists(targetAddonDir))
+                if (_fileSystem.Directory.Exists(targetAddOnDir))
                 {
-                    _fileSystem.Directory.Delete(targetAddonDir, true);
+                    _fileSystem.Directory.Delete(targetAddOnDir, true);
                 }
 
-                _fileSystem.Directory.Move(sourceAddonDir, targetAddonDir);
+                _fileSystem.Directory.Move(sourceAddOnDir, targetAddOnDir);
+                success = true;
             }
         }
         finally
@@ -84,5 +88,6 @@ public class AddOnBundleInstaller
                 _fileSystem.Directory.Delete(tempExtractPath, true);
             }
         }
+        return success;
     }
 }

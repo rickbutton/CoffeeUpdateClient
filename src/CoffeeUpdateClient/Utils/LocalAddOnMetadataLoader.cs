@@ -31,8 +31,10 @@ public class LocalAddOnMetadataLoader
         _env = env;
     }
 
-    public async Task<(AddOnMetadata?, Status)> LoadAddOnMetadata(string? addOnsPath, string name)
+    public async Task<(AddOnMetadata?, Status)> LoadAddOnMetadataAsync(string name)
     {
+        var addOnsPath = Config.Instance.AddOnsPath;
+
         if (string.IsNullOrEmpty(addOnsPath))
         {
             Log.Debug("AddOns path is null or empty.");
@@ -43,7 +45,7 @@ public class LocalAddOnMetadataLoader
 
         if (!_env.FileSystem.Directory.Exists(addOnPath))
         {
-            Log.Warning("AddOn directory does not exist: {Path}", addOnPath);
+            Log.Error("AddOn directory does not exist: {Path}", addOnPath);
             return (null, Status.NotFound);
         }
 
@@ -76,7 +78,7 @@ public class LocalAddOnMetadataLoader
             }, Status.Found);
         }
 
-        Log.Warning("No valid TOC file found for AddOn: {AddOnName}", name);
+        Log.Error("No valid TOC file found for AddOn: {AddOnName}", name);
         return (null, Status.Error);
     }
 }

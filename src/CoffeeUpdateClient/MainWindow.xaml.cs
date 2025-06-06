@@ -1,97 +1,123 @@
-﻿using System.Reactive.Disposables;
-using System.Reactive.Linq;
-using System.Reflection;
+﻿using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Media;
+using CoffeeUpdateClient.Models;
 using CoffeeUpdateClient.Services;
 using CoffeeUpdateClient.Utils;
-using CoffeeUpdateClient.ViewModels;
 using Microsoft.Win32;
-using ReactiveUI;
 using Serilog;
+using Windows.ApplicationModel.VoiceCommands;
 
 namespace CoffeeUpdateClient;
 
-public partial class MainWindow
+public partial class MainWindow : INotifyPropertyChanged
 {
-    public MainWindow(IConfigService configService, IAddOnDownloader addOnDownloader, LocalAddOnMetadataLoader localAddOnMetadataLoader, AddOnBundleInstaller AddOnBundleInstaller)
+
+    private class State : INotifyPropertyChanged
     {
-        InitializeComponent();
-        ViewModel = new AppViewModel(configService, addOnDownloader, localAddOnMetadataLoader, AddOnBundleInstaller);
-
-        this.WhenActivated(disposableRegistration =>
+        public enum AddOnsPathStateEnum
         {
-#pragma warning disable CS8602
-            this.WhenAnyValue(x => x.ViewModel.AddOnsPath)
-                .CombineLatest(this.WhenAnyValue(x => x.ViewModel.NormalizedAddOnsPath))
-#pragma warning restore CS8602
-                .Select(x =>
+            Invalid,
+            Valid,
+            NotSet,
+        };
+
+        // real state
+        public string? AddOnsPath { get; private set; }
+        public string? NormalizedAddOnsPath { get; private set; }
+        public bool UserHasSelectedPath { get; private set; }
+
+        // derived state
+        public AddOnsPathStateEnum PathState
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(AddOnsPath))
                 {
-                    var (path, normalizedPath) = x;
-                    return !string.IsNullOrEmpty(normalizedPath) ? normalizedPath : path;
-                })
-                .BindTo(this, view => view.WoWAddOnsFolderTextBox.Text)
-                .DisposeWith(disposableRegistration);
-
-            this.BindCommand(ViewModel,
-                vm => vm.Browse,
-                view => view.BrowseButton)
-                .DisposeWith(disposableRegistration);
-
-            this.OneWayBind(ViewModel,
-                vm => vm.CanUpdate,
-                view => view.UpdateButton.IsEnabled)
-                .DisposeWith(disposableRegistration);
-
-            this.OneWayBind(ViewModel,
-                vm => vm.AddOnsPathState,
-                view => view.ErrorMessageTextBlock.Text,
-                value =>
+                    return AddOnsPathStateEnum.NotSet;
+                }
+                else if (string.IsNullOrEmpty(NormalizedAddOnsPath))
                 {
-                    switch (value)
-                    {
-                        case AppViewModel.AddOnsPathStateEnum.Invalid:
-                            return "WoW AddOns folder is invalid. Make sure you selected a valid folder for WoW.";
-                        case AppViewModel.AddOnsPathStateEnum.Valid:
-                            return "Valid WoW AddOn folder selected.";
-                        case AppViewModel.AddOnsPathStateEnum.NotSet:
-                            return string.Empty;
-                        default:
-                            throw new ArgumentOutOfRangeException(nameof(value), value, null);
-                    }
-                })
-                .DisposeWith(disposableRegistration);
-
-            this.OneWayBind(ViewModel,
-                vm => vm.AddOnsPathState,
-                view => view.ErrorMessageTextBlock.Foreground,
-                value =>
+                    return AddOnsPathStateEnum.Invalid;
+                }
+                else
                 {
-                    switch (value)
-                    {
-                        case AppViewModel.AddOnsPathStateEnum.Invalid:
-                            return Brushes.Red;
-                        case AppViewModel.AddOnsPathStateEnum.Valid:
-                            return Brushes.Green;
-                        case AppViewModel.AddOnsPathStateEnum.NotSet:
-                            return Brushes.Black;
-                        default:
-                            throw new ArgumentOutOfRangeException(nameof(value), value, null);
-                    }
-                })
-                .DisposeWith(disposableRegistration);
+                    return AddOnsPathStateEnum.Valid;
+                }
+            }
+        }
+        public string? SelectedAddOnsPath => string.IsNullOrEmpty(AddOnsPath) ? NormalizedAddOnsPath : AddOnsPath;
 
-            this.OneWayBind(ViewModel,
-                vm => vm.AddOns,
-                view => view.AddOnListView.ItemsSource)
-                .DisposeWith(disposableRegistration);
+        public string ErrorMessage
+        {
+            get
+            {
+                return PathState switch
+                {
+                    AddOnsPathStateEnum.Invalid => "WoW AddOns folder is invalid. Make sure you selected a valid folder for WoW.",
+                    AddOnsPathStateEnum.Valid => "Valid WoW AddOn folder selected.",
+                    AddOnsPathStateEnum.NotSet => string.Empty,
+                    _ => throw new ArgumentOutOfRangeException(nameof(PathState), PathState, null),
+                };
+            }
+        }
+        public SolidColorBrush ErrorMessageForeground
+        {
+            get
+            {
+                return PathState switch
+                {
+                    AddOnsPathStateEnum.Invalid => Brushes.Red,
+                    AddOnsPathStateEnum.Valid => Brushes.Green,
+                    AddOnsPathStateEnum.NotSet => Brushes.Black,
+                    _ => throw new ArgumentOutOfRangeException(nameof(PathState), PathState, null),
+                };
+            }
+        }
 
-            VersionTextBlock.Text = $"v{Assembly.GetExecutingAssembly().GetName().Version}";
+        public State(string? addOnsPath)
+        {
+            AddOnsPath = addOnsPath;
+            NormalizedAddOnsPath = AddOnPathResolver.NormalizeAddOnsDirectory(addOnsPath);
+            UserHasSelectedPath = false;
+        }
 
-            this.BindCommand(ViewModel,
-                vm => vm.Update,
-                view => view.UpdateButton)
-                .DisposeWith(disposableRegistration);
-        });
+        public void SelectPath(string path)
+        {
+            AddOnsPath = path;
+            NormalizedAddOnsPath = AddOnPathResolver.NormalizeAddOnsDirectory(path);
+            UserHasSelectedPath = true;
+            Log.Information("User selected path: {Path}", path);
+            Config.Instance.AddOnsPath = NormalizedAddOnsPath ?? string.Empty;
+        }
+
+
+#pragma warning disable 67
+        public event PropertyChangedEventHandler? PropertyChanged;
+#pragma warning restore 67
+    }
+
+    private State CurrentState { get; set; }
+
+    public MainWindow(IAddOnDownloader addOnDownloader, LocalAddOnMetadataLoader localAddOnMetadataLoader, AddOnBundleInstaller AddOnBundleInstaller)
+    {
+        CurrentState = new State(Config.Instance.AddOnsPath);
+        this.DataContext = CurrentState;
+        InitializeComponent();
+    }
+
+    private void Browse_Clicked(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog();
+        if (!string.IsNullOrEmpty(CurrentState.NormalizedAddOnsPath))
+        {
+            dialog.InitialDirectory = CurrentState.NormalizedAddOnsPath;
+        }
+
+        if (dialog.ShowDialog() == true)
+        {
+            CurrentState.SelectPath(dialog.FolderName);
+        }
     }
 }

@@ -28,7 +28,7 @@ When generating new features:
 ```csharp
 // ALWAYS generate corresponding unit tests
 [Test]
-public async Task MethodName_Scenario_ExpectedBehavior()
+public async Task MethodName_Scenario_ExpectedBehaviorAsync()
 {
     var mockEnv = new MockEnv();
     var service = new ServiceClass(mockEnv);
@@ -54,113 +54,12 @@ private readonly IFileSystem _fileSystem;
 _fileSystem.File.WriteAllText("path", content);
 ```
 
-### 3. Service Singleton Pattern
-
-**Initialization Pattern:**
-
-```csharp
-// Service must implement initialization
-public async Task LoadConfigSingleton()
-{
-    // Initialize here
-    _isInitialized = true;
-}
-
-public static ServiceClass Instance 
-{
-    get 
-    {
-        if (!_isInitialized)
-            throw new InvalidOperationException("Call LoadConfigSingleton() first");
-        return _instance;
-    }
-}
-```
-
-### 4. WPF/ReactiveUI Integration
-
-**Data Binding Patterns:**
-```csharp
-// ❌ NEVER manipulate UI directly
-// textBox.Text = "value";
-// button.IsEnabled = condition;
-
-// ✅ Property binding with transformation
-this.WhenAnyValue(x => x.ViewModel.SomeProperty)
-    .Select(value => TransformValue(value))
-    .BindTo(this, view => view.TargetControl.Property)
-    .DisposeWith(disposableRegistration);
-
-// ✅ Command binding
-this.BindCommand(ViewModel,
-    vm => vm.SomeCommand,
-    view => view.ButtonControl)
-    .DisposeWith(disposableRegistration);
-
-// ✅ One-way binding with converter
-this.OneWayBind(ViewModel,
-    vm => vm.StateProperty,
-    view => view.Control.Property,
-    value => ConvertValue(value))
-    .DisposeWith(disposableRegistration);
-
-// ✅ Complex binding with multiple sources
-this.WhenAnyValue(x => x.ViewModel.Property1)
-    .CombineLatest(this.WhenAnyValue(x => x.ViewModel.Property2))
-    .Select(x => ProcessCombinedValues(x.First, x.Second))
-    .BindTo(this, view => view.TargetControl.Property)
-    .DisposeWith(disposableRegistration);
-```
-
-**ViewModel Properties:**
-
-```csharp
-// ✅ Use RaiseAndSetIfChanged for properties with backing fields
-private string _propertyName;
-public string PropertyName
-{
-    get => _propertyName;
-    set => this.RaiseAndSetIfChanged(ref _propertyName, value);
-}
-
-// ✅ Use ObservableAsPropertyHelper for computed properties
-private readonly ObservableAsPropertyHelper<string> _computedProperty;
-public string ComputedProperty => _computedProperty.Value;
-
-// ✅ Initialize computed properties in constructor with ToProperty
-_computedProperty = this
-    .WhenAnyValue(x => x.SourceProperty)
-    .Select(value => TransformValue(value))
-    .ToProperty(this, x => x.ComputedProperty);
-
-// ✅ Use ReactiveCommand for commands with proper typing
-public ReactiveCommand<Unit, string?> SomeCommand { get; }
-
-// ✅ Initialize ReactiveCommand in constructor
-SomeCommand = ReactiveCommand.Create<Unit, string?>(_ =>
-{
-    // Command implementation
-    return result;
-});
-
-// ✅ Complex computed properties with multiple sources
-_validationState = this
-    .WhenAnyValue(x => x.Property1)
-    .CombineLatest(this.WhenAnyValue(x => x.Property2))
-    .Select(x =>
-    {
-        var (prop1, prop2) = x;
-        return DetermineState(prop1, prop2);
-    })
-    .ToProperty(this, x => x.ValidationState);
-```
-
-### 5. NUnit 3 Test Patterns
+### 3. NUnit 3 Test Patterns
 
 **Async Testing:**
 ```csharp
 [Test]
-public async Task AsyncMethod_ValidInput_CompletesSuccessfully()
+public async Task AsyncMethod_ValidInput_CompletesSuccessfullyAsync()
 {
     // Use async/await, not .Result or .Wait()
     var result = await service.AsyncMethod();
@@ -184,7 +83,7 @@ public void Method_InvalidState_ThrowsInvalidOperationException()
 **File Operation Verification:**
 ```csharp
 [Test]
-public async Task SaveConfig_ValidData_CreatesFile()
+public async Task SaveConfig_ValidData_CreatesFileAsync()
 {
     var mockEnv = new MockEnv();
     var service = new FileSystemConfigService(mockEnv);
@@ -216,12 +115,12 @@ tests/CoffeeUpdateClient.Tests/
 ### Dependency Injection
 ```csharp
 // Services should accept dependencies in constructor
-public class AddonUpdateService
+public class AddOnUpdateService
 {
     private readonly IFileSystem _fileSystem;
     private readonly IHttpClient _httpClient;
     
-    public AddonUpdateService(IEnvironment env)
+    public AddOnUpdateService(IEnvironment env)
     {
         _fileSystem = env.FileSystem;
         _httpClient = env.HttpClient;
@@ -232,7 +131,7 @@ public class AddonUpdateService
 ### Formatting
 ```powershell
 # Format a specific file
-dotnet format --include src/CoffeeUpdateClient/Services/AddonUpdateService.cs
+dotnet format --include src/CoffeeUpdateClient/Services/AddOnUpdateService.cs
 ```
 Always run `dotnet format` after making changes to any file, no matter how small. After running `dotnet format`, the file on disk will be updated to match the formatting rules; include the changes in the changeset presented to the user. Do not attempt to further format the file after running the tool.
 
@@ -250,15 +149,6 @@ public void Method_NullInput_ThrowsArgumentNullException()
     
     Assert.That(ex.ParamName, Is.EqualTo("expectedParamName"));
 }
-```
-
-### Async Best Practices
-```csharp
-// Use ConfigureAwait(false) in library code
-await SomeAsyncOperation().ConfigureAwait(false);
-
-// Prefer Task over async void (except event handlers)
-public async Task ProcessAsync() { /* ... */ }
 ```
 
 ## Build and Test Commands
