@@ -25,7 +25,7 @@ public class AddOnUpdateManagerTest : ConfigTestBase
         _metadataLoader = new LocalAddOnMetadataLoader(_mockEnv);
         _installLog = new InstallLogCollector();
         _updateManager = new AddOnUpdateManager(_mockDownloader, _bundleInstaller, _metadataLoader, _installLog);
-        
+
         _addOnsPath = Config.Instance.AddOnsPath;
         _mockEnv.FileSystem.Directory.CreateDirectory(_addOnsPath);
     }
@@ -134,7 +134,7 @@ public class AddOnUpdateManagerTest : ConfigTestBase
         var result = await _updateManager.UpdateAddOns();
 
         Assert.That(result, Is.False);
-        
+
         // Verify the good addon was still installed
         var goodAddOnPath = Path.Combine(_addOnsPath, "GoodAddOn");
         Assert.That(_mockEnv.FileSystem.Directory.Exists(goodAddOnPath), Is.True);
@@ -206,11 +206,11 @@ public class AddOnUpdateManagerTest : ConfigTestBase
         var result = await _updateManager.GetAddOnInstallStatesAsync(manifest);
 
         Assert.That(result.Count(), Is.EqualTo(2));
-        
+
         var installedState = result.First(s => s.Name == "InstalledAddOn");
         Assert.That(installedState.IsInstalled, Is.True);
         Assert.That(installedState.IsUpdated, Is.False);
-        
+
         var notInstalledState = result.First(s => s.Name == "NotInstalledAddOn");
         Assert.That(notInstalledState.IsInstalled, Is.False);
         Assert.That(notInstalledState.IsUpdated, Is.False);
@@ -229,7 +229,7 @@ public class AddOnUpdateManagerTest : ConfigTestBase
 
         // First call should fetch from downloader
         var result1 = await _updateManager.GetAddOnInstallStatesForLatestManifestAsync(false);
-        
+
         // Second call within timeout should reuse cached manifest
         var result2 = await _updateManager.GetAddOnInstallStatesForLatestManifestAsync(false);
 
@@ -251,7 +251,7 @@ public class AddOnUpdateManagerTest : ConfigTestBase
 
         // First call
         await _updateManager.GetAddOnInstallStatesForLatestManifestAsync(false);
-        
+
         // Force refresh should ignore cache
         var result = await _updateManager.GetAddOnInstallStatesForLatestManifestAsync(true);
 
@@ -263,7 +263,7 @@ public class AddOnUpdateManagerTest : ConfigTestBase
     {
         var addOnPath = Path.Combine(_addOnsPath, name);
         _mockEnv.FileSystem.Directory.CreateDirectory(addOnPath);
-        
+
         var tocContent = $"## Title: {name}\n## Version: {version}\n## Interface: 100200";
         var tocPath = Path.Combine(addOnPath, $"{name}.toc");
         _mockEnv.FileSystem.File.WriteAllText(tocPath, tocContent);

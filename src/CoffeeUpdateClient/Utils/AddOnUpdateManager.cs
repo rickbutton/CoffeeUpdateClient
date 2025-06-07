@@ -83,7 +83,7 @@ public class AddOnUpdateManager
 
     public async Task<IEnumerable<AddOnInstallState>> GetAddOnInstallStatesAsync(AddOnManifest manifest)
     {
-        
+
 
         var states = new List<AddOnInstallState>();
         foreach (var remoteMetadata in manifest.AddOns)

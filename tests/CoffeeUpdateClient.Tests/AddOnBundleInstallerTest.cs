@@ -84,7 +84,7 @@ public class AddOnBundleInstallerTest : ConfigTestBase
         var addOnBundle = CreateBundle(addOnName, filesInZip);
 
         _installer.InstallAddOn(addOnBundle);
-        
+
         Assert.That(_env.FileSystem.File.ReadAllText(existingFilePath), Is.EqualTo("Content of file1.lua"));
     }
 
@@ -93,12 +93,12 @@ public class AddOnBundleInstallerTest : ConfigTestBase
     {
         var addOnName = "MyAddOn";
         var filesInZip = new[] { "file1.lua" };
-        
+
         var targetAddOnDir = _env.FileSystem.Path.Combine(_addOnsPath, addOnName);
         _env.FileSystem.Directory.CreateDirectory(targetAddOnDir);
         var extraFilePath = _env.FileSystem.Path.Combine(targetAddOnDir, "extraFile.txt");
         _env.FileSystem.File.WriteAllText(extraFilePath, "This file should be deleted");
-         var extraFileInSubdirPath = _env.FileSystem.Path.Combine(targetAddOnDir, "subdir", "extra2.txt");
+        var extraFileInSubdirPath = _env.FileSystem.Path.Combine(targetAddOnDir, "subdir", "extra2.txt");
         _env.FileSystem.Directory.CreateDirectory(_env.FileSystem.Path.GetDirectoryName(extraFileInSubdirPath)!);
         _env.FileSystem.File.WriteAllText(extraFileInSubdirPath, "This file should also be deleted");
 
@@ -110,7 +110,7 @@ public class AddOnBundleInstallerTest : ConfigTestBase
         Assert.That(_env.FileSystem.File.Exists(extraFileInSubdirPath), Is.False, "Extra file in subdirectory was not deleted.");
         Assert.That(_env.FileSystem.Directory.Exists(_env.FileSystem.Path.GetDirectoryName(extraFileInSubdirPath)), Is.False, "Extra subdirectory was not deleted.");
     }
-    
+
     [Test]
     public void InstallAddOn_BundleWithIncorrectRootFolder_ThrowsInvalidOperationException()
     {
@@ -132,7 +132,7 @@ public class AddOnBundleInstallerTest : ConfigTestBase
             archive.CreateEntry("Root2/file.txt");
         }
         memoryStream.Seek(0, SeekOrigin.Begin);
-        
+
         var addOnName = "MyAddOn";
         var bundle = new AddOnBundle(new AddOnMetadata()
         {

@@ -33,7 +33,7 @@ public class MockAddOnDownloader : IAddOnDownloader
     {
         var key = $"{addOnName}-{version}";
         var metadata = new AddOnMetadata { Name = addOnName, Version = version };
-        
+
         if (files != null)
         {
             var bundle = CreateBundle(metadata, files);
@@ -54,7 +54,7 @@ public class MockAddOnDownloader : IAddOnDownloader
     public async Task<AddOnBundle?> GetAddOnBundleAsync(AddOnMetadata metadata)
     {
         await Task.Delay(1); // Simulate async operation
-        
+
         if (_shouldReturnNullBundle)
             return null;
 
