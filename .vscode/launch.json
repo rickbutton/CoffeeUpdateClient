@@ -9,7 +9,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/CoffeeUpdateClient/bin/Debug/net8.0-windows10.0.17763/CoffeeUpdateClient.exe",
+            "program": "${workspaceFolder}/build/bin/CoffeeUpdateClient/debug/CoffeeUpdateClient.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

@@ -3,3 +3,6 @@ obj/
 TestResults/
 FodyWeavers.xsd
 build/
+.env
+node_modules/
+release/

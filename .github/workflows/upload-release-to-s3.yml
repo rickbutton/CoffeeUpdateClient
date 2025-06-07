@@ -1,0 +1,38 @@
+name: upload to s3 on new release
+
+on:
+  workflow_run:
+    workflows: [release]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  run-node-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository
+      - name: checkout repository
+        uses: actions/checkout@v3
+
+      # Set up Node.js
+      - name: setup node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'
+
+      # Install dependencies
+      - name: install dependencies
+        run: npm install
+
+      # Run the Node.js script
+      - name: run upload-to-discord.js
+        run: node scripts/upload-to-discord.js
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUCKET_ENDPOINT: ${{ secrets.BUCKET_ENDPOINT }}
+          BUCKET_REGION: ${{ secrets.BUCKET_REGION }}
+          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+          BUCKET_ACCESS_KEY_ID: ${{ secrets.BUCKET_ACCESS_KEY_ID }}
+          BUCKET_SECRET_ACCESS_KEY: ${{ secrets.BUCKET_SECRET_ACCESS_KEY }}

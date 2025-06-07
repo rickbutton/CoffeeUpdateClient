@@ -5,6 +5,7 @@ using CoffeeUpdateClient.Utils;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using CoffeeUpdateClient.Models;
+using AutoUpdaterDotNET;
 
 namespace CoffeeUpdateClient;
 
@@ -57,12 +58,28 @@ public partial class App : Application
             .CreateLogger();
 
         Log.Information("starting CoffeeUpdateClient");
+
+        
+
         var config = await provider.GetRequiredService<IConfigService>().GetConfigAsync();
         Config.InitConfigSingleton(config);
         Log.Verbose("loaded config", config);
 
         var window = provider.GetRequiredService<MainWindow>();
         window.Show();
+
+        AutoUpdater.Synchronous = true;
+        AutoUpdater.ShowSkipButton = false;
+        AutoUpdater.ShowRemindLaterButton = false;
+        AutoUpdater.TopMost = true;
+#if DEBUG
+        Log.Information("skipping updater in DEBUG");
+#else
+        var clientManifest = "https://coffee-auras.nyc3.digitaloceanspaces.com/client.xml";
+        Log.Information("checking for updates via manifest at {manifest}", clientManifest);
+        AutoUpdater.SetOwner(window);
+        AutoUpdater.Start(clientManifest);
+#endif
     }
 }
 
