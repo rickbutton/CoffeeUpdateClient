@@ -27,8 +27,8 @@ jobs:
         run: npm install
 
       # Run the Node.js script
-      - name: run upload-to-discord.js
-        run: node scripts/upload-to-discord.js
+      - name: run upload-release-to-s3.js
+        run: node scripts/upload-release-to-s3.js
         env:
           GH_TOKEN: ${{ github.token }}
           BUCKET_ENDPOINT: ${{ secrets.BUCKET_ENDPOINT }}
