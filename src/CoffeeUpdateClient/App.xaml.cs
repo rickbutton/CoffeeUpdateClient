@@ -59,7 +59,7 @@ public partial class App : Application
 
         Log.Information("starting CoffeeUpdateClient");
 
-        
+
 
         var config = await provider.GetRequiredService<IConfigService>().GetConfigAsync();
         Config.InitConfigSingleton(config);
