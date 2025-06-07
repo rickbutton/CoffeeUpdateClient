@@ -10,15 +10,17 @@ public class AddOnUpdateManager
     private IAddOnDownloader _addOnDownloader;
     private AddOnBundleInstaller _addOnBundleInstaller;
     private LocalAddOnMetadataLoader _localAddOnMetadataLoader;
+    private InstallLogCollector _installLog;
 
     private AddOnManifest? _latestManifest;
     private DateTime? _lastManifestTime;
 
-    public AddOnUpdateManager(IAddOnDownloader addOnDownloader, AddOnBundleInstaller addOnBundleInstaller, LocalAddOnMetadataLoader localAddOnMetadataLoader)
+    public AddOnUpdateManager(IAddOnDownloader addOnDownloader, AddOnBundleInstaller addOnBundleInstaller, LocalAddOnMetadataLoader localAddOnMetadataLoader, InstallLogCollector installLog)
     {
         _addOnDownloader = addOnDownloader;
         _addOnBundleInstaller = addOnBundleInstaller;
         _localAddOnMetadataLoader = localAddOnMetadataLoader;
+        _installLog = installLog;
     }
 
     public async Task<bool> UpdateAddOns(bool forceRefresh = false)
@@ -38,32 +40,36 @@ public class AddOnUpdateManager
         {
             if (!state.IsUpdated)
             {
-                var verb = state.IsInstalled ? "install" : "update";
-                Log.Information("Starting {verb} of addon {name}-{version}", verb, state.Name, state.RemoteAddOn.Version);
+                var verb = state.IsInstalled ? "update" : "install";
+                _installLog.AddLog($"Starting {verb} of addon {state.Name}-{state.RemoteAddOn.Version}");
 
                 var bundle = await _addOnDownloader.GetAddOnBundleAsync(state.RemoteAddOn);
                 if (bundle == null)
                 {
-                    Log.Error("Failed to fetch addon bundle {name}-{version} during update", state.RemoteAddOn.Name, state.RemoteAddOn.Version);
+                    _installLog.AddLog($"Failed to fetch addon bundle {state.RemoteAddOn.Name}-{state.RemoteAddOn.Version} during update");
                     success = false;
                     continue;
                 }
 
                 if (!_addOnBundleInstaller.InstallAddOn(bundle))
                 {
-                    Log.Error("Failed to {verb} addon bundle {name}-{version} during update", verb, state.RemoteAddOn.Name, state.RemoteAddOn.Version);
+                    _installLog.AddLog($"Failed to {verb} addon bundle {state.RemoteAddOn.Name}-{state.RemoteAddOn.Version} during update");
                     success = false;
                     continue;
                 }
 
-                Log.Information("AddOn {name}-{version} {verb} successful", state.RemoteAddOn.Name, state.RemoteAddOn.Version, verb);
+                _installLog.AddLog($"AddOn {state.RemoteAddOn.Name}-{state.RemoteAddOn.Version} {verb} successful");
+            }
+            else
+            {
+                _installLog.AddLog($"AddOn {state.RemoteAddOn.Name} skipped, already up to date.");
             }
         }
 
         return success;
     }
 
-    public async Task<IEnumerable<AddOnInstallState>?> GetAddOnInstallStatesForLatestManfiestAsync(bool forceRefresh)
+    public async Task<IEnumerable<AddOnInstallState>?> GetAddOnInstallStatesForLatestManifestAsync(bool forceRefresh)
     {
         var manifest = await RefreshManifestAsync(forceRefresh);
 

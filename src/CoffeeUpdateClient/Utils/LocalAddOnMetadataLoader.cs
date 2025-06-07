@@ -45,7 +45,7 @@ public class LocalAddOnMetadataLoader
 
         if (!_env.FileSystem.Directory.Exists(addOnPath))
         {
-            Log.Error("AddOn directory does not exist: {Path}", addOnPath);
+            Log.Debug("AddOn directory does not exist: {Path}", addOnPath);
             return (null, Status.NotFound);
         }
 

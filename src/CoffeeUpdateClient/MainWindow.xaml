@@ -6,7 +6,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="Coffee AddOn Updater"
-        Height="450"
+        Height="400"
         Width="500"
         ResizeMode="NoResize"
         Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}">
@@ -47,7 +47,7 @@
                            HorizontalAlignment="Stretch"
                            VerticalAlignment="Bottom"/>
                 <TextBlock Name="VersionTextBlock"
-                           Text="v1.0.0"
+                           Text="{Binding Path=ClientVersion}"
                            FontSize="12"
                            Grid.Column="2"
                            Grid.Row="0"
@@ -61,19 +61,15 @@
                     <Button Content="Browse" Width="75" Click="Browse_Clicked" />
                 </StackPanel>
             </StackPanel>
-
-            <TextBlock HorizontalAlignment="Left"
-                       VerticalAlignment="Center"
-                       Style="{StaticResource ErrorMessageTextBlockStyle}"
-                       Text="{Binding Path=ErrorMessage}"
-                       Foreground="{Binding Path=ErrorMessageForeground}" />
-            <TextBox Style="{StaticResource LogTextBoxStyle}" Height="200" IsReadOnly="True" />
+            <TextBox Name="LogTextBox" Style="{StaticResource LogTextBoxStyle}" Text="{Binding Path=AllInstallLogs, Mode=OneWay}" Height="170" IsReadOnly="True" />
             <Button Name="UpdateButton"
-                    Content="Update" 
                     Width="100" 
                     Height="30" 
                     HorizontalAlignment="Center" 
-                    VerticalAlignment="Bottom" />
+                    VerticalAlignment="Bottom"
+                    Click="Update_Clicked"
+                    Content="{Binding Path=UpdateButtonText}"
+                    IsEnabled="{Binding Path=CanUpdate}" />
         </StackPanel>
     </Grid>
 </Window>

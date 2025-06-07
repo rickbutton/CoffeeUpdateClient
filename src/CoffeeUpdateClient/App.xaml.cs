@@ -33,6 +33,8 @@ public partial class App : Application
         services.AddSingleton<AppDataFolder>();
         services.AddSingleton<LocalAddOnMetadataLoader>();
         services.AddSingleton<AddOnBundleInstaller>();
+        services.AddSingleton<AddOnUpdateManager>();
+        services.AddSingleton<InstallLogCollector>();
 
         // main window
         services.AddSingleton<MainWindow>();
