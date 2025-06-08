@@ -141,7 +141,7 @@ public partial class MainWindow : INotifyPropertyChanged
         LogTextBox.ScrollToEnd();
     }
 
-    private void Browse_Clicked(object sender, RoutedEventArgs e)
+    private async void Browse_Clicked(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFolderDialog();
         if (!string.IsNullOrEmpty(CurrentState.NormalizedAddOnsPath))
@@ -154,12 +154,20 @@ public partial class MainWindow : INotifyPropertyChanged
             CurrentState.SelectPath(dialog.FolderName);
         }
 
-        _ = LoadInitialStateAsync();
+        await LoadInitialStateAsync();
     }
 
-    private void Update_Clicked(object sender, RoutedEventArgs e)
+    private async void Update_Clicked(object sender, RoutedEventArgs e)
     {
-        _ = UpdateAddOnsAsync();
+        try
+        {
+            await UpdateAddOnsAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("exception during update: {error}", ex);
+            _installLog.AddLog($"An exception occured during update: {ex}");
+        }
     }
 
     private bool DisplayConfigState()
@@ -210,6 +218,11 @@ public partial class MainWindow : INotifyPropertyChanged
                     _installLog.AddLog($"- {state.Name} is up to date, local={state.LocalAddOn.Version}");
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("exception while loading install state: {error}", ex);
+            _installLog.AddLog($"An exception occured while loading install state: {ex}");
         }
         finally
         {

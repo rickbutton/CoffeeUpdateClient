@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using CoffeeUpdateClient.Models;
 using AutoUpdaterDotNET;
+using System.Diagnostics;
 
 namespace CoffeeUpdateClient;
 
@@ -17,10 +18,11 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        OnStartupAsync(e);
+        SetupUnhandledExceptionHandling();
+        _ = OnStartupAsync(e);
     }
 
-    protected async void OnStartupAsync(StartupEventArgs e)
+    protected async Task OnStartupAsync(StartupEventArgs e)
     {
         var services = new ServiceCollection();
 
@@ -80,6 +82,33 @@ public partial class App : Application
         AutoUpdater.SetOwner(window);
         AutoUpdater.Start(clientManifest);
 #endif
+    }
+
+    private void SetupUnhandledExceptionHandling()
+    {
+        // Catch exceptions from all threads in the AppDomain.
+        AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+            ShowUnhandledException(args.ExceptionObject as Exception, "AppDomain.CurrentDomain.UnhandledException");
+
+        // Catch exceptions from each AppDomain that uses a task scheduler for async operations.
+        TaskScheduler.UnobservedTaskException += (sender, args) =>
+            ShowUnhandledException(args.Exception, "TaskScheduler.UnobservedTaskException");
+
+        // Catch exceptions from a single specific UI dispatcher thread.
+        Dispatcher.UnhandledException += (sender, args) =>
+        {
+            // If we are debugging, let Visual Studio handle the exception and take us to the code that threw it.
+            if (!Debugger.IsAttached)
+            {
+                args.Handled = true;
+                ShowUnhandledException(args.Exception, "Dispatcher.UnhandledException");
+            }
+        };
+    }
+
+    void ShowUnhandledException(Exception? e, string unhandledExceptionType)
+    {
+        Log.Error("Unhandled exception ({type}): {e}", unhandledExceptionType, e);
     }
 }
 
