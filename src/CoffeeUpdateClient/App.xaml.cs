@@ -74,6 +74,7 @@ public partial class App : Application
         AutoUpdater.ShowSkipButton = false;
         AutoUpdater.ShowRemindLaterButton = false;
         AutoUpdater.TopMost = true;
+        AutoUpdater.RunUpdateAsAdmin = false;
 #if DEBUG
         Log.Information("skipping updater in DEBUG");
 #else
