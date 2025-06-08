@@ -77,7 +77,7 @@ public class AddOnBundleInstaller
                     _fileSystem.Directory.Delete(targetAddOnDir, true);
                 }
 
-                _fileSystem.Directory.Move(sourceAddOnDir, targetAddOnDir);
+                DeepCopy(sourceAddOnDir, targetAddOnDir);
                 success = true;
             }
         }
@@ -89,5 +89,25 @@ public class AddOnBundleInstaller
             }
         }
         return success;
+    }
+
+    private void DeepCopy(string sourceDir, string destinationDir)
+    {
+        if (!_fileSystem.Directory.Exists(destinationDir))
+        {
+            _fileSystem.Directory.CreateDirectory(destinationDir);
+        }
+
+        foreach (string dir in _fileSystem.Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            string dirToCreate = dir.Replace(sourceDir, destinationDir);
+            _fileSystem.Directory.CreateDirectory(dirToCreate);
+        }
+
+        foreach (string newPath in _fileSystem.Directory.GetFiles(sourceDir, "*.*", SearchOption.AllDirectories))
+        {
+            string destPath = newPath.Replace(sourceDir, destinationDir);
+            _fileSystem.File.Copy(newPath, destPath, true);
+        }
     }
 }
