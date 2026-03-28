@@ -1,6 +1,7 @@
 {
   "name": "coffee-update-client",
-  "version": "0.0.1",
+  "private": true,
+  "packageManager": "pnpm@10.12.4",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.806.0",
     "aws-sdk": "^2.1692.0",
