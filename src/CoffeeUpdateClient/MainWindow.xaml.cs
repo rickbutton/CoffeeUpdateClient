@@ -215,10 +215,6 @@ public partial class MainWindow : INotifyPropertyChanged
                 {
                     _installLog.AddLog($"- {state.Name} will be removed, local={state.LocalAddOn!.Version}");
                 }
-                else
-                {
-                    _installLog.AddLog($"- {state.Name} is already removed");
-                }
             }
             else if (state.HasLocalError)
             {

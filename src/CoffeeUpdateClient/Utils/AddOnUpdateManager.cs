@@ -41,7 +41,6 @@ public class AddOnUpdateManager
             {
                 if (!state.IsInstalled)
                 {
-                    _installLog.AddLog($"AddOn {state.Name} skipped, not installed.");
                     continue;
                 }
 
