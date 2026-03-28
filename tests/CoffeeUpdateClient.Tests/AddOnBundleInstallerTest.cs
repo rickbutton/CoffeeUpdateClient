@@ -268,6 +268,21 @@ public class AddOnBundleInstallerTest
     }
 
     [Test]
+    public void InstallAddOn_CreatesGitDirectoryInEachFolder()
+    {
+        var bundle = CreateMultiFolderBundle("BigWigs", new Dictionary<string, string[]>
+        {
+            ["BigWigs"] = ["BigWigs.toc"],
+            ["BigWigs_Options"] = ["Options.toc"],
+        });
+
+        _installer.InstallAddOn(bundle);
+
+        Assert.That(_env.FileSystem.Directory.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs", ".git")), Is.True);
+        Assert.That(_env.FileSystem.Directory.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs_Options", ".git")), Is.True);
+    }
+
+    [Test]
     public void InstallAddOn_EmptyBundle_ThrowsInvalidOperationException()
     {
         var memoryStream = new MemoryStream();

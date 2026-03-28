@@ -81,6 +81,12 @@ public class AddOnBundleInstaller
                     }
 
                     DeepCopy(sourceDir, targetDir);
+
+                    var gitDir = _fileSystem.Path.Combine(targetDir, ".git");
+                    if (!_fileSystem.Directory.Exists(gitDir))
+                    {
+                        _fileSystem.Directory.CreateDirectory(gitDir);
+                    }
                 }
 
                 return rootFolders;
