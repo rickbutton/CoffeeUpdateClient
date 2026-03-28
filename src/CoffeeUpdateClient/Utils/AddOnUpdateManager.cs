@@ -1,3 +1,5 @@
+using System.IO.Abstractions;
+using System.Linq;
 using CoffeeUpdateClient.Models;
 using CoffeeUpdateClient.Services;
 using Serilog;
@@ -10,16 +12,20 @@ public class AddOnUpdateManager
     private readonly AddOnBundleInstaller _addOnBundleInstaller;
     private readonly LocalAddOnMetadataLoader _localAddOnMetadataLoader;
     private readonly InstallLogCollector _installLog;
+    private readonly Config _config;
+    private readonly IFileSystem _fileSystem;
 
     private AddOnManifest? _latestManifest;
     private DateTime? _lastManifestTime;
 
-    public AddOnUpdateManager(IAddOnDownloader addOnDownloader, AddOnBundleInstaller addOnBundleInstaller, LocalAddOnMetadataLoader localAddOnMetadataLoader, InstallLogCollector installLog)
+    public AddOnUpdateManager(IAddOnDownloader addOnDownloader, AddOnBundleInstaller addOnBundleInstaller, LocalAddOnMetadataLoader localAddOnMetadataLoader, InstallLogCollector installLog, Config config, IEnv env)
     {
         _addOnDownloader = addOnDownloader;
         _addOnBundleInstaller = addOnBundleInstaller;
         _localAddOnMetadataLoader = localAddOnMetadataLoader;
         _installLog = installLog;
+        _config = config;
+        _fileSystem = env.FileSystem;
     }
 
     public async Task<bool> UpdateAddOns(bool forceRefresh = false)
@@ -39,7 +45,8 @@ public class AddOnUpdateManager
         {
             if (state.ShouldUninstall)
             {
-                if (!state.IsInstalled)
+                var hasTrackedFolders = _config.InstalledAddOnFolders.ContainsKey(state.Name);
+                if (!state.IsInstalled && !hasTrackedFolders)
                 {
                     continue;
                 }
@@ -73,12 +80,21 @@ public class AddOnUpdateManager
 
                 try
                 {
-                    if (!_addOnBundleInstaller.InstallAddOn(bundle))
+                    var installedFolders = _addOnBundleInstaller.InstallAddOn(bundle);
+
+                    var prevFolders = _config.InstalledAddOnFolders.GetValueOrDefault(state.Name, [state.Name]);
+                    var orphans = prevFolders.Except(installedFolders).ToList();
+                    foreach (var orphan in orphans)
                     {
-                        _installLog.AddLog($"Failed to {verb} addon bundle {state.RemoteAddOn.Name}-{state.RemoteAddOn.Version} during update");
-                        success = false;
-                        continue;
+                        var orphanPath = _fileSystem.Path.Combine(_config.AddOnsPath, orphan);
+                        if (_fileSystem.Directory.Exists(orphanPath))
+                        {
+                            _fileSystem.Directory.Delete(orphanPath, true);
+                            Log.Information("Removed orphaned addon folder '{Folder}'", orphan);
+                        }
                     }
+
+                    _config.SetInstalledFolders(state.Name, installedFolders);
                 }
                 catch (Exception ex)
                 {

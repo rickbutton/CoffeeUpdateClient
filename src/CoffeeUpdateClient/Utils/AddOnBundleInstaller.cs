@@ -19,7 +19,7 @@ public class AddOnBundleInstaller
         _config = config;
     }
 
-    public bool InstallAddOn(AddOnBundle bundle)
+    public List<string> InstallAddOn(AddOnBundle bundle)
     {
         var addOnsPath = _config.AddOnsPath;
 
@@ -27,19 +27,18 @@ public class AddOnBundleInstaller
         _fileSystem.Directory.CreateDirectory(tempExtractPath);
         Log.Information("Extracting add-on bundle for '{AddOnName}' to temporary path: {TempPath}", bundle.Metadata.Name, tempExtractPath);
 
-        bool success = false;
         try
         {
             using (var archive = new ZipArchive(bundle.Data, ZipArchiveMode.Read))
             {
-                var rootEntries = archive.Entries
+                var rootFolders = archive.Entries
                     .Select(e => e.FullName.Split(['/', '\\'])[0])
                     .Distinct()
                     .ToList();
 
-                if (rootEntries.Count != 1 || !string.Equals(rootEntries[0], bundle.Metadata.Name, StringComparison.OrdinalIgnoreCase))
+                if (!rootFolders.Any(f => string.Equals(f, bundle.Metadata.Name, StringComparison.OrdinalIgnoreCase)))
                 {
-                    throw new InvalidOperationException($"AddOn bundle for '{bundle.Metadata.Name}' must contain a single root folder named '{bundle.Metadata.Name}'. Found: {string.Join(", ", rootEntries)}");
+                    throw new InvalidOperationException($"AddOn bundle for '{bundle.Metadata.Name}' must contain a root folder named '{bundle.Metadata.Name}' for version detection. Found: {string.Join(", ", rootFolders)}");
                 }
 
                 foreach (var entry in archive.Entries)
@@ -71,16 +70,20 @@ public class AddOnBundleInstaller
                     }
                 }
 
-                var sourceAddOnDir = _fileSystem.Path.Combine(tempExtractPath, bundle.Metadata.Name);
-                var targetAddOnDir = _fileSystem.Path.Combine(addOnsPath, bundle.Metadata.Name);
-
-                if (_fileSystem.Directory.Exists(targetAddOnDir))
+                foreach (var folder in rootFolders)
                 {
-                    _fileSystem.Directory.Delete(targetAddOnDir, true);
+                    var sourceDir = _fileSystem.Path.Combine(tempExtractPath, folder);
+                    var targetDir = _fileSystem.Path.Combine(addOnsPath, folder);
+
+                    if (_fileSystem.Directory.Exists(targetDir))
+                    {
+                        _fileSystem.Directory.Delete(targetDir, true);
+                    }
+
+                    DeepCopy(sourceDir, targetDir);
                 }
 
-                DeepCopy(sourceAddOnDir, targetAddOnDir);
-                success = true;
+                return rootFolders;
             }
         }
         finally
@@ -90,17 +93,21 @@ public class AddOnBundleInstaller
                 _fileSystem.Directory.Delete(tempExtractPath, true);
             }
         }
-        return success;
     }
 
     public void UninstallAddOn(string name)
     {
-        var addOnPath = _fileSystem.Path.Combine(_config.AddOnsPath, name);
-        if (_fileSystem.Directory.Exists(addOnPath))
+        var folders = _config.InstalledAddOnFolders.GetValueOrDefault(name, [name]);
+        foreach (var folder in folders)
         {
-            _fileSystem.Directory.Delete(addOnPath, true);
-            Log.Information("Uninstalled addon '{AddOnName}'", name);
+            var addOnPath = _fileSystem.Path.Combine(_config.AddOnsPath, folder);
+            if (_fileSystem.Directory.Exists(addOnPath))
+            {
+                _fileSystem.Directory.Delete(addOnPath, true);
+                Log.Information("Uninstalled addon folder '{Folder}'", folder);
+            }
         }
+        _config.RemoveInstalledFolders(name);
     }
 
     private void DeepCopy(string sourceDir, string destinationDir)

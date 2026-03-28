@@ -45,6 +45,13 @@ public class MockAddOnDownloader : IAddOnDownloader
         }
     }
 
+    public void AddMultiFolderBundle(string addonName, string version, Dictionary<string, string[]> folderFiles)
+    {
+        var key = $"{addonName}-{version}";
+        var metadata = new AddOnMetadata { Name = addonName, Version = version };
+        _bundles[key] = CreateMultiFolderBundle(metadata, folderFiles);
+    }
+
     public async Task<AddOnManifest?> GetLatestManifestAsync()
     {
         await Task.Delay(1); // Simulate async operation
@@ -80,6 +87,26 @@ public class MockAddOnDownloader : IAddOnDownloader
         }
         memoryStream.Seek(0, SeekOrigin.Begin);
 
+        return new AddOnBundle(metadata, memoryStream);
+    }
+
+    private AddOnBundle CreateMultiFolderBundle(AddOnMetadata metadata, Dictionary<string, string[]> folderFiles)
+    {
+        var memoryStream = new MemoryStream();
+        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+        {
+            foreach (var (folder, files) in folderFiles)
+            {
+                foreach (var fileName in files)
+                {
+                    var entry = archive.CreateEntry($"{folder}/{fileName}");
+                    using var entryStream = entry.Open();
+                    using var writer = new StreamWriter(entryStream, Encoding.UTF8);
+                    writer.Write($"Content of {folder}/{fileName}");
+                }
+            }
+        }
+        memoryStream.Seek(0, SeekOrigin.Begin);
         return new AddOnBundle(metadata, memoryStream);
     }
 }

@@ -50,6 +50,27 @@ public class AddOnBundleInstallerTest
         return new AddOnBundle(metadata, memoryStream);
     }
 
+    private AddOnBundle CreateMultiFolderBundle(string primaryName, Dictionary<string, string[]> folderFiles)
+    {
+        var memoryStream = new MemoryStream();
+        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+        {
+            foreach (var (folder, files) in folderFiles)
+            {
+                foreach (var fileName in files)
+                {
+                    var entry = archive.CreateEntry($"{folder}/{fileName}");
+                    using var entryStream = entry.Open();
+                    using var writer = new StreamWriter(entryStream, Encoding.UTF8);
+                    writer.Write($"Content of {folder}/{fileName}");
+                }
+            }
+        }
+        memoryStream.Seek(0, SeekOrigin.Begin);
+
+        return new AddOnBundle(new AddOnMetadata { Name = primaryName, Version = "v1.0.0" }, memoryStream);
+    }
+
     [Test]
     public void InstallAddOn_ValidBundle_ExtractsFiles()
     {
@@ -67,6 +88,14 @@ public class AddOnBundleInstallerTest
             Assert.That(_env.FileSystem.File.Exists(expectedFilePath), Is.True, $"Expected file '{expectedFilePath}' not found.");
             Assert.That(_env.FileSystem.File.ReadAllText(expectedFilePath), Is.EqualTo($"Content of {file}"));
         }
+    }
+
+    [Test]
+    public void InstallAddOn_ValidBundle_ReturnsInstalledFolders()
+    {
+        var addOnName = "MyAddOn";
+        var result = _installer.InstallAddOn(CreateBundle(addOnName, ["file1.lua"]));
+        Assert.That(result, Is.EqualTo(new[] { addOnName }));
     }
 
     [Test]
@@ -112,35 +141,58 @@ public class AddOnBundleInstallerTest
     }
 
     [Test]
-    public void InstallAddOn_BundleWithIncorrectRootFolder_ThrowsInvalidOperationException()
+    public void InstallAddOn_BundleWithNameNotInRootFolders_ThrowsInvalidOperationException()
     {
         var addOnName = "MyAddOn";
         var filesInZip = new[] { "file1.lua" };
         var addOnBundle = CreateBundle(addOnName, filesInZip, "WrongRootFolder");
 
         var ex = Assert.Throws<InvalidOperationException>(() => _installer.InstallAddOn(addOnBundle));
-        Assert.That(ex?.Message, Does.Contain($"AddOn bundle for '{addOnName}' must contain a single root folder named '{addOnName}'. Found: WrongRootFolder"));
+        Assert.That(ex?.Message, Does.Contain($"AddOn bundle for '{addOnName}' must contain a root folder named '{addOnName}' for version detection. Found: WrongRootFolder"));
     }
 
     [Test]
-    public void InstallAddOn_BundleWithMultipleRootFolders_ThrowsInvalidOperationException()
+    public void InstallAddOn_MultiFolderBundle_ExtractsAllFolders()
     {
-        var memoryStream = new MemoryStream();
-        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+        var bundle = CreateMultiFolderBundle("BigWigs", new Dictionary<string, string[]>
         {
-            archive.CreateEntry("Root1/file.txt");
-            archive.CreateEntry("Root2/file.txt");
-        }
-        memoryStream.Seek(0, SeekOrigin.Begin);
+            ["BigWigs"] = ["BigWigs.toc", "Core.lua"],
+            ["BigWigs_Options"] = ["Options.toc"],
+            ["BigWigs_Plugins"] = ["Plugins.toc"],
+        });
 
-        var addOnName = "MyAddOn";
-        var bundle = new AddOnBundle(new AddOnMetadata()
+        var result = _installer.InstallAddOn(bundle);
+
+        Assert.That(result, Is.EquivalentTo(new[] { "BigWigs", "BigWigs_Options", "BigWigs_Plugins" }));
+        Assert.That(_env.FileSystem.Directory.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs")), Is.True);
+        Assert.That(_env.FileSystem.Directory.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs_Options")), Is.True);
+        Assert.That(_env.FileSystem.Directory.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs_Plugins")), Is.True);
+        Assert.That(_env.FileSystem.File.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs", "BigWigs.toc")), Is.True);
+        Assert.That(_env.FileSystem.File.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs_Options", "Options.toc")), Is.True);
+    }
+
+    [Test]
+    public void InstallAddOn_MultiFolderBundle_OverwritesExistingFolders()
+    {
+        // Pre-create old versions of all three folders
+        foreach (var folder in new[] { "BigWigs", "BigWigs_Options", "BigWigs_Plugins" })
         {
-            Name = addOnName,
-            Version = "v1.0.0",
-        }, memoryStream);
-        var ex = Assert.Throws<InvalidOperationException>(() => _installer.InstallAddOn(bundle));
-        Assert.That(ex?.Message, Does.Contain($"AddOn bundle for '{addOnName}' must contain a single root folder named '{addOnName}'. Found: Root1, Root2"));
+            var dir = _env.FileSystem.Path.Combine(_addOnsPath, folder);
+            _env.FileSystem.Directory.CreateDirectory(dir);
+            _env.FileSystem.File.WriteAllText(_env.FileSystem.Path.Combine(dir, "old.lua"), "old content");
+        }
+
+        var bundle = CreateMultiFolderBundle("BigWigs", new Dictionary<string, string[]>
+        {
+            ["BigWigs"] = ["BigWigs.toc"],
+            ["BigWigs_Options"] = ["Options.toc"],
+            ["BigWigs_Plugins"] = ["Plugins.toc"],
+        });
+
+        _installer.InstallAddOn(bundle);
+
+        Assert.That(_env.FileSystem.File.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs", "old.lua")), Is.False);
+        Assert.That(_env.FileSystem.File.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs", "BigWigs.toc")), Is.True);
     }
 
     [Test]
@@ -187,6 +239,35 @@ public class AddOnBundleInstallerTest
     }
 
     [Test]
+    public void UninstallAddOn_WithTrackedFolders_DeletesAllFolders()
+    {
+        _config.SetInstalledFolders("BigWigs", ["BigWigs", "BigWigs_Options", "BigWigs_Plugins"]);
+
+        foreach (var folder in new[] { "BigWigs", "BigWigs_Options", "BigWigs_Plugins" })
+        {
+            var dir = _env.FileSystem.Path.Combine(_addOnsPath, folder);
+            _env.FileSystem.Directory.CreateDirectory(dir);
+            _env.FileSystem.File.WriteAllText(_env.FileSystem.Path.Combine(dir, "file.lua"), "content");
+        }
+
+        _installer.UninstallAddOn("BigWigs");
+
+        Assert.That(_env.FileSystem.Directory.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs")), Is.False);
+        Assert.That(_env.FileSystem.Directory.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs_Options")), Is.False);
+        Assert.That(_env.FileSystem.Directory.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs_Plugins")), Is.False);
+    }
+
+    [Test]
+    public void UninstallAddOn_WithTrackedFolders_RemovesConfigEntry()
+    {
+        _config.SetInstalledFolders("BigWigs", ["BigWigs", "BigWigs_Options"]);
+
+        _installer.UninstallAddOn("BigWigs");
+
+        Assert.That(_config.InstalledAddOnFolders.ContainsKey("BigWigs"), Is.False);
+    }
+
+    [Test]
     public void InstallAddOn_EmptyBundle_ThrowsInvalidOperationException()
     {
         var memoryStream = new MemoryStream();
@@ -203,6 +284,6 @@ public class AddOnBundleInstallerTest
             Version = "v1.0.0",
         }, memoryStream);
         var ex = Assert.Throws<InvalidOperationException>(() => _installer.InstallAddOn(bundle));
-        Assert.That(ex?.Message, Does.Contain($"AddOn bundle for '{addOnName}' must contain a single root folder named '{addOnName}'. Found: "));
+        Assert.That(ex?.Message, Does.Contain($"AddOn bundle for '{addOnName}' must contain a root folder named '{addOnName}' for version detection. Found: "));
     }
 }
