@@ -93,6 +93,16 @@ public class AddOnBundleInstaller
         return success;
     }
 
+    public void UninstallAddOn(string name)
+    {
+        var addOnPath = _fileSystem.Path.Combine(_config.AddOnsPath, name);
+        if (_fileSystem.Directory.Exists(addOnPath))
+        {
+            _fileSystem.Directory.Delete(addOnPath, true);
+            Log.Information("Uninstalled addon '{AddOnName}'", name);
+        }
+    }
+
     private void DeepCopy(string sourceDir, string destinationDir)
     {
         if (!_fileSystem.Directory.Exists(destinationDir))

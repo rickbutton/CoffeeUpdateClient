@@ -169,6 +169,24 @@ public class AddOnBundleInstallerTest
     }
 
     [Test]
+    public void UninstallAddOn_DirectoryExists_DeletesDirectory()
+    {
+        var addOnDir = _env.FileSystem.Path.Combine(_addOnsPath, "OldAddOn");
+        _env.FileSystem.Directory.CreateDirectory(addOnDir);
+        _env.FileSystem.File.WriteAllText(_env.FileSystem.Path.Combine(addOnDir, "file.lua"), "content");
+
+        _installer.UninstallAddOn("OldAddOn");
+
+        Assert.That(_env.FileSystem.Directory.Exists(addOnDir), Is.False);
+    }
+
+    [Test]
+    public void UninstallAddOn_DirectoryDoesNotExist_DoesNotThrow()
+    {
+        Assert.DoesNotThrow(() => _installer.UninstallAddOn("NonExistent"));
+    }
+
+    [Test]
     public void InstallAddOn_EmptyBundle_ThrowsInvalidOperationException()
     {
         var memoryStream = new MemoryStream();

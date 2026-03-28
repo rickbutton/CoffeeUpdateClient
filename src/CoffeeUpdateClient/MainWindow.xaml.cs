@@ -209,7 +209,18 @@ public partial class MainWindow : INotifyPropertyChanged
 
         foreach (var state in installStates)
         {
-            if (state.HasLocalError)
+            if (state.ShouldUninstall)
+            {
+                if (state.IsInstalled)
+                {
+                    _installLog.AddLog($"- {state.Name} will be removed, local={state.LocalAddOn!.Version}");
+                }
+                else
+                {
+                    _installLog.AddLog($"- {state.Name} is already removed");
+                }
+            }
+            else if (state.HasLocalError)
             {
                 _installLog.AddLog($"- {state.Name} has a local TOC error (version unreadable), remote={state.RemoteAddOn.Version}");
             }

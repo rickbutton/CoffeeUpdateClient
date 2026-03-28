@@ -37,6 +37,28 @@ public class AddOnUpdateManager
         bool success = true;
         foreach (var state in installStates)
         {
+            if (state.ShouldUninstall)
+            {
+                if (!state.IsInstalled)
+                {
+                    _installLog.AddLog($"AddOn {state.Name} skipped, not installed.");
+                    continue;
+                }
+
+                try
+                {
+                    _addOnBundleInstaller.UninstallAddOn(state.Name);
+                    _installLog.AddLog($"AddOn {state.Name} removal successful");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Exception uninstalling addon {Name}", state.Name);
+                    _installLog.AddLog($"Failed to remove addon {state.Name}: {ex.Message}");
+                    success = false;
+                }
+                continue;
+            }
+
             if (!state.IsUpdated)
             {
                 var verb = state.HasLocalError ? "reinstall" : state.IsInstalled ? "update" : "install";

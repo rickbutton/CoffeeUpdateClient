@@ -306,6 +306,52 @@ public class AddOnUpdateManagerTest
         Assert.That(_mockEnv.FileSystem.Directory.Exists(Path.Combine(AddOnsPath, "GoodAddOn")), Is.True);
     }
 
+    [Test]
+    public async Task UpdateAddOns_NullVersion_InstalledAddon_RemovesDirectoryAsync()
+    {
+        var manifest = new AddOnManifest
+        {
+            AddOns = [new AddOnMetadata { Name = "OldAddOn", Version = null }]
+        };
+        _mockDownloader.SetManifest(manifest);
+        SetupLocalAddOn("OldAddOn", "1.0.0");
+
+        var result = await _updateManager.UpdateAddOns();
+
+        Assert.That(result, Is.True);
+        Assert.That(_mockEnv.FileSystem.Directory.Exists(Path.Combine(AddOnsPath, "OldAddOn")), Is.False);
+    }
+
+    [Test]
+    public async Task UpdateAddOns_NullVersion_NotInstalledAddon_ReturnsTrueAsync()
+    {
+        var manifest = new AddOnManifest
+        {
+            AddOns = [new AddOnMetadata { Name = "GoneAddOn", Version = null }]
+        };
+        _mockDownloader.SetManifest(manifest);
+
+        var result = await _updateManager.UpdateAddOns();
+
+        Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public async Task UpdateAddOns_NullVersion_DoesNotDownloadBundleAsync()
+    {
+        var manifest = new AddOnManifest
+        {
+            AddOns = [new AddOnMetadata { Name = "OldAddOn", Version = null }]
+        };
+        _mockDownloader.SetManifest(manifest);
+        SetupLocalAddOn("OldAddOn", "1.0.0");
+        // No bundle added — if a download is attempted the mock returns null → result would be false
+
+        var result = await _updateManager.UpdateAddOns();
+
+        Assert.That(result, Is.True);
+    }
+
     private void SetupLocalAddOn(string name, string version)
     {
         var addOnPath = Path.Combine(AddOnsPath, name);

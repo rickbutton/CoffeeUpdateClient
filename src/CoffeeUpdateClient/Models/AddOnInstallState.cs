@@ -23,4 +23,6 @@ public class AddOnInstallState
     public bool IsInstalled => LocalAddOn != null;
 
     public bool IsUpdated => LocalAddOn?.Version == RemoteAddOn.Version;
+
+    public bool ShouldUninstall => RemoteAddOn.Version == null;
 }
