@@ -1,15 +1,13 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Media;
 using CoffeeUpdateClient.Models;
 using CoffeeUpdateClient.Services;
 using CoffeeUpdateClient.Utils;
 using Microsoft.Win32;
 using Serilog;
-using Windows.ApplicationModel.VoiceCommands;
 
 namespace CoffeeUpdateClient;
 
@@ -24,6 +22,8 @@ public partial class MainWindow : INotifyPropertyChanged
             Valid,
             NotSet,
         };
+
+        private readonly Config _config;
 
         // real state
         public string ClientVersion { get; private set; }
@@ -75,11 +75,12 @@ public partial class MainWindow : INotifyPropertyChanged
             }
         }
 
-        public State(string? addOnsPath)
+        public State(Config config)
         {
+            _config = config;
             ClientVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "vUNK";
-            AddOnsPath = addOnsPath;
-            NormalizedAddOnsPath = AddOnPathResolver.NormalizeAddOnsDirectory(addOnsPath);
+            AddOnsPath = config.AddOnsPath;
+            NormalizedAddOnsPath = AddOnPathResolver.NormalizeAddOnsDirectory(config.AddOnsPath);
             UserHasSelectedPath = false;
         }
 
@@ -89,7 +90,7 @@ public partial class MainWindow : INotifyPropertyChanged
             NormalizedAddOnsPath = AddOnPathResolver.NormalizeAddOnsDirectory(path);
             UserHasSelectedPath = true;
             Log.Information("User selected path: {Path}", path);
-            Config.Instance.AddOnsPath = NormalizedAddOnsPath ?? string.Empty;
+            _config.AddOnsPath = NormalizedAddOnsPath ?? string.Empty;
         }
 
         public void ClearLog()
@@ -115,9 +116,9 @@ public partial class MainWindow : INotifyPropertyChanged
     private readonly AddOnUpdateManager _updateManager;
     private readonly InstallLogCollector _installLog;
 
-    public MainWindow(AddOnUpdateManager updateManager, InstallLogCollector installLog)
+    public MainWindow(AddOnUpdateManager updateManager, InstallLogCollector installLog, Config config)
     {
-        CurrentState = new State(Config.Instance.AddOnsPath);
+        CurrentState = new State(config);
         _updateManager = updateManager;
         _installLog = installLog;
 
@@ -159,15 +160,7 @@ public partial class MainWindow : INotifyPropertyChanged
 
     private async void Update_Clicked(object sender, RoutedEventArgs e)
     {
-        try
-        {
-            await UpdateAddOnsAsync();
-        }
-        catch (Exception ex)
-        {
-            Log.Error("exception during update: {error}", ex);
-            _installLog.AddLog($"An exception occured during update: {ex}");
-        }
+        await UpdateAddOnsAsync();
     }
 
     private bool DisplayConfigState()
@@ -185,44 +178,19 @@ public partial class MainWindow : INotifyPropertyChanged
         return true;
     }
 
-    private async Task LoadInitialStateAsync()
+    private async Task RunWithProgress(string errorContext, Func<Task> action)
     {
+        _installLog.ClearLog();
+        CurrentState.IsWorkInProgress = true;
         try
         {
-            _installLog.ClearLog();
-            CurrentState.IsWorkInProgress = true;
-            if (!DisplayConfigState())
-            {
-                return;
-            }
-
-            var installStates = await _updateManager.GetAddOnInstallStatesForLatestManifestAsync(false);
-            if (installStates == null)
-            {
-                _installLog.AddLog("Unable to determine current state of addons. See detailed log for more information.");
-                return;
-            }
-
-            foreach (var state in installStates)
-            {
-                if (state.LocalAddOn == null)
-                {
-                    _installLog.AddLog($"- {state.Name} needs to be installed, remote={state.RemoteAddOn.Version}");
-                }
-                else if (!state.IsUpdated)
-                {
-                    _installLog.AddLog($"- {state.Name} needs to be updated, local={state.LocalAddOn.Version} remote={state.RemoteAddOn.Version}");
-                }
-                else
-                {
-                    _installLog.AddLog($"- {state.Name} is up to date, local={state.LocalAddOn.Version}");
-                }
-            }
+            if (!DisplayConfigState()) return;
+            await action();
         }
         catch (Exception ex)
         {
-            Log.Error("exception while loading install state: {error}", ex);
-            _installLog.AddLog($"An exception occured while loading install state: {ex}");
+            Log.Error(ex, "Exception {Context}", errorContext);
+            _installLog.AddLog($"An exception occurred {errorContext}: {ex.Message}");
         }
         finally
         {
@@ -230,33 +198,48 @@ public partial class MainWindow : INotifyPropertyChanged
         }
     }
 
-    private async Task UpdateAddOnsAsync()
+    private Task LoadInitialStateAsync() => RunWithProgress("while loading install state", async () =>
     {
-        try
+        var installStates = await _updateManager.GetAddOnInstallStatesForLatestManifestAsync(false);
+        if (installStates == null)
         {
-            _installLog.ClearLog();
+            _installLog.AddLog("Unable to determine current state of addons. See detailed log for more information.");
+            return;
+        }
 
-            CurrentState.IsWorkInProgress = true;
-            if (!DisplayConfigState())
+        foreach (var state in installStates)
+        {
+            if (state.HasLocalError)
             {
-                return;
+                _installLog.AddLog($"- {state.Name} has a local TOC error (version unreadable), remote={state.RemoteAddOn.Version}");
             }
-
-            _installLog.AddLog("Starting AddOn Update...");
-            var success = await _updateManager.UpdateAddOns(false);
-
-            if (success)
+            else if (state.LocalAddOn == null)
             {
-                _installLog.AddLog("AddOn install finished successfully");
+                _installLog.AddLog($"- {state.Name} needs to be installed, remote={state.RemoteAddOn.Version}");
+            }
+            else if (!state.IsUpdated)
+            {
+                _installLog.AddLog($"- {state.Name} needs to be updated, local={state.LocalAddOn.Version} remote={state.RemoteAddOn.Version}");
             }
             else
             {
-                _installLog.AddLog("AddOn install ended in an error. See detailed log for more information.");
+                _installLog.AddLog($"- {state.Name} is up to date, local={state.LocalAddOn.Version}");
             }
         }
-        finally
+    });
+
+    private Task UpdateAddOnsAsync() => RunWithProgress("during update", async () =>
+    {
+        _installLog.AddLog("Starting AddOn Update...");
+        var success = await _updateManager.UpdateAddOns(false);
+
+        if (success)
         {
-            CurrentState.IsWorkInProgress = false;
+            _installLog.AddLog("AddOn install finished successfully");
         }
-    }
+        else
+        {
+            _installLog.AddLog("AddOn install ended in an error. See detailed log for more information.");
+        }
+    });
 }

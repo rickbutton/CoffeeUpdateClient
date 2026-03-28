@@ -6,11 +6,10 @@ namespace CoffeeUpdateClient.Utils;
 
 public class AddOnUpdateManager
 {
-
-    private IAddOnDownloader _addOnDownloader;
-    private AddOnBundleInstaller _addOnBundleInstaller;
-    private LocalAddOnMetadataLoader _localAddOnMetadataLoader;
-    private InstallLogCollector _installLog;
+    private readonly IAddOnDownloader _addOnDownloader;
+    private readonly AddOnBundleInstaller _addOnBundleInstaller;
+    private readonly LocalAddOnMetadataLoader _localAddOnMetadataLoader;
+    private readonly InstallLogCollector _installLog;
 
     private AddOnManifest? _latestManifest;
     private DateTime? _lastManifestTime;
@@ -40,7 +39,7 @@ public class AddOnUpdateManager
         {
             if (!state.IsUpdated)
             {
-                var verb = state.IsInstalled ? "update" : "install";
+                var verb = state.HasLocalError ? "reinstall" : state.IsInstalled ? "update" : "install";
                 _installLog.AddLog($"Starting {verb} of addon {state.Name}-{state.RemoteAddOn.Version}");
 
                 var bundle = await _addOnDownloader.GetAddOnBundleAsync(state.RemoteAddOn);
@@ -51,9 +50,19 @@ public class AddOnUpdateManager
                     continue;
                 }
 
-                if (!_addOnBundleInstaller.InstallAddOn(bundle))
+                try
                 {
-                    _installLog.AddLog($"Failed to {verb} addon bundle {state.RemoteAddOn.Name}-{state.RemoteAddOn.Version} during update");
+                    if (!_addOnBundleInstaller.InstallAddOn(bundle))
+                    {
+                        _installLog.AddLog($"Failed to {verb} addon bundle {state.RemoteAddOn.Name}-{state.RemoteAddOn.Version} during update");
+                        success = false;
+                        continue;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Exception installing addon {Name}-{Version}", state.RemoteAddOn.Name, state.RemoteAddOn.Version);
+                    _installLog.AddLog($"Failed to {verb} addon bundle {state.RemoteAddOn.Name}-{state.RemoteAddOn.Version}: {ex.Message}");
                     success = false;
                     continue;
                 }
@@ -83,13 +92,12 @@ public class AddOnUpdateManager
 
     public async Task<IEnumerable<AddOnInstallState>> GetAddOnInstallStatesAsync(AddOnManifest manifest)
     {
-
-
         var states = new List<AddOnInstallState>();
         foreach (var remoteMetadata in manifest.AddOns)
         {
             var (localMetadata, localMetadataStatus) = await _localAddOnMetadataLoader.LoadAddOnMetadataAsync(remoteMetadata.Name);
-            states.Add(new AddOnInstallState(localMetadata, remoteMetadata));
+            var hasLocalError = localMetadataStatus == LocalAddOnMetadataLoader.Status.Error;
+            states.Add(new AddOnInstallState(localMetadata, remoteMetadata, hasLocalError));
         }
 
         return states;

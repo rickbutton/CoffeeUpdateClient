@@ -27,7 +27,13 @@ jobs:
       run: dotnet build --no-restore
       
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory build/coverage
+
+    - name: Upload coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: build/coverage
       
     - name: Format check
       run: dotnet format --verify-no-changes --verbosity detailed

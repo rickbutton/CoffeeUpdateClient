@@ -6,3 +6,5 @@ build/
 .env
 node_modules/
 release/
+local-manifest/
+.claude/settings.local.json

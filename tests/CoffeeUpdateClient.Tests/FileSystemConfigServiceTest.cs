@@ -6,7 +6,7 @@ using CoffeeUpdateClient.Models;
 
 namespace CoffeeUpdateClient.Tests;
 
-public class FileSystemConfigServiceTest : ConfigTestBase
+public class FileSystemConfigServiceTest
 {
     [Test]
     public async Task CreatesFileAtExpectedLocationAsync()
@@ -72,6 +72,21 @@ public class FileSystemConfigServiceTest : ConfigTestBase
         Assert.That(loadedConfig, Is.Not.Null);
         Assert.That(loadedConfig!.AddOnsPath, Is.EqualTo(existingAddOnsPath));
         Assert.That(config.AddOnsPath, Is.EqualTo(existingAddOnsPath));
+    }
+
+    [Test]
+    public async Task CreatesDefaultConfigWithEmptyAddOnsPath_WhenWoWNotFoundAsync()
+    {
+        var mockEnv = new MockEnv();
+        var appDataFolder = new AppDataFolder(mockEnv);
+        var wowLocator = new MockWowLocator(); // returns null install path
+
+        var service = new FileSystemConfigService(mockEnv, appDataFolder, wowLocator);
+        var config = await service.GetConfigAsync();
+
+        Assert.That(config.AddOnsPath, Is.EqualTo(string.Empty));
+        var configPath = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient\config.json";
+        Assert.That(mockEnv.FileSystem.File.Exists(configPath), Is.True);
     }
 
     [Test]

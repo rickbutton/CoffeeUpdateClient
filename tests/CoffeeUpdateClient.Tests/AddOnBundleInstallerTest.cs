@@ -1,27 +1,27 @@
 using NUnit.Framework;
 using CoffeeUpdateClient.Utils;
 using System.IO;
-using System.IO.Abstractions.TestingHelpers;
 using System.IO.Compression;
-using System.Linq;
 using System.Text;
 using CoffeeUpdateClient.Tests.Mocks;
 using CoffeeUpdateClient.Models;
 
 namespace CoffeeUpdateClient.Tests;
 
-public class AddOnBundleInstallerTest : ConfigTestBase
+public class AddOnBundleInstallerTest
 {
     private MockEnv _env = null!;
     private AddOnBundleInstaller _installer = null!;
     private string _addOnsPath = null!;
+    private Config _config = null!;
 
     [SetUp]
     public void SetUp()
     {
         _env = new MockEnv();
-        _installer = new AddOnBundleInstaller(_env);
-        _addOnsPath = Config.Instance.AddOnsPath;
+        _addOnsPath = @"C:\World of Warcraft\_retail_\Interface\AddOns";
+        _config = new Config { AddOnsPath = _addOnsPath };
+        _installer = new AddOnBundleInstaller(_env, _config);
         _env.FileSystem.Directory.CreateDirectory(_addOnsPath);
     }
 
@@ -141,6 +141,31 @@ public class AddOnBundleInstallerTest : ConfigTestBase
         }, memoryStream);
         var ex = Assert.Throws<InvalidOperationException>(() => _installer.InstallAddOn(bundle));
         Assert.That(ex?.Message, Does.Contain($"AddOn bundle for '{addOnName}' must contain a single root folder named '{addOnName}'. Found: Root1, Root2"));
+    }
+
+    [Test]
+    public void InstallAddOn_BundleWithExplicitDirectoryEntry_ExtractsCorrectly()
+    {
+        var addOnName = "MyAddOn";
+        var memoryStream = new MemoryStream();
+        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+        {
+            // Explicit directory entry — exercises the entry.Name == "" branch
+            archive.CreateEntry($"{addOnName}/");
+            // File in that same directory — directoryPath already exists, exercises the false branch
+            var fileEntry = archive.CreateEntry($"{addOnName}/file.lua");
+            using var entryStream = fileEntry.Open();
+            using var writer = new StreamWriter(entryStream, Encoding.UTF8);
+            writer.Write("lua content");
+        }
+        memoryStream.Seek(0, SeekOrigin.Begin);
+
+        var bundle = new AddOnBundle(new AddOnMetadata { Name = addOnName, Version = "1.0.0" }, memoryStream);
+        _installer.InstallAddOn(bundle);
+
+        var expectedFilePath = _env.FileSystem.Path.Combine(_addOnsPath, addOnName, "file.lua");
+        Assert.That(_env.FileSystem.File.Exists(expectedFilePath), Is.True);
+        Assert.That(_env.FileSystem.File.ReadAllText(expectedFilePath), Is.EqualTo("lua content"));
     }
 
     [Test]

@@ -6,28 +6,30 @@ using NUnit.Framework;
 
 namespace CoffeeUpdateClient.Tests;
 
-public class AddOnUpdateManagerTest : ConfigTestBase
+public class AddOnUpdateManagerTest
 {
+    private const string AddOnsPath = @"C:\World of Warcraft\_retail_\Interface\AddOns";
+
     private MockEnv _mockEnv = null!;
     private MockAddOnDownloader _mockDownloader = null!;
     private AddOnBundleInstaller _bundleInstaller = null!;
     private LocalAddOnMetadataLoader _metadataLoader = null!;
     private InstallLogCollector _installLog = null!;
     private AddOnUpdateManager _updateManager = null!;
-    private string _addOnsPath = null!;
+    private Config _config = null!;
 
     [SetUp]
     public void SetUp()
     {
         _mockEnv = new MockEnv();
         _mockDownloader = new MockAddOnDownloader();
-        _bundleInstaller = new AddOnBundleInstaller(_mockEnv);
-        _metadataLoader = new LocalAddOnMetadataLoader(_mockEnv);
+        _config = new Config { AddOnsPath = AddOnsPath };
+        _bundleInstaller = new AddOnBundleInstaller(_mockEnv, _config);
+        _metadataLoader = new LocalAddOnMetadataLoader(_mockEnv, _config);
         _installLog = new InstallLogCollector();
         _updateManager = new AddOnUpdateManager(_mockDownloader, _bundleInstaller, _metadataLoader, _installLog);
 
-        _addOnsPath = Config.Instance.AddOnsPath;
-        _mockEnv.FileSystem.Directory.CreateDirectory(_addOnsPath);
+        _mockEnv.FileSystem.Directory.CreateDirectory(AddOnsPath);
     }
 
     [Test]
@@ -75,7 +77,7 @@ public class AddOnUpdateManagerTest : ConfigTestBase
         var result = await _updateManager.UpdateAddOns();
 
         Assert.That(result, Is.True);
-        var addOnPath = Path.Combine(_addOnsPath, "NewAddOn");
+        var addOnPath = Path.Combine(AddOnsPath, "NewAddOn");
         Assert.That(_mockEnv.FileSystem.Directory.Exists(addOnPath), Is.True);
     }
 
@@ -96,7 +98,7 @@ public class AddOnUpdateManagerTest : ConfigTestBase
         var result = await _updateManager.UpdateAddOns();
 
         Assert.That(result, Is.True);
-        var addOnPath = Path.Combine(_addOnsPath, "UpdateAddOn");
+        var addOnPath = Path.Combine(AddOnsPath, "UpdateAddOn");
         Assert.That(_mockEnv.FileSystem.Directory.Exists(addOnPath), Is.True);
     }
 
@@ -136,7 +138,7 @@ public class AddOnUpdateManagerTest : ConfigTestBase
         Assert.That(result, Is.False);
 
         // Verify the good addon was still installed
-        var goodAddOnPath = Path.Combine(_addOnsPath, "GoodAddOn");
+        var goodAddOnPath = Path.Combine(AddOnsPath, "GoodAddOn");
         Assert.That(_mockEnv.FileSystem.Directory.Exists(goodAddOnPath), Is.True);
     }
 
@@ -259,9 +261,54 @@ public class AddOnUpdateManagerTest : ConfigTestBase
         Assert.That(result!.Count(), Is.EqualTo(1));
     }
 
+    [Test]
+    public async Task GetAddOnInstallStatesAsync_TOCHasNoVersion_SetsHasLocalErrorAsync()
+    {
+        var manifest = new AddOnManifest
+        {
+            AddOns = [
+                new AddOnMetadata { Name = "BrokenAddOn", Version = "1.0.0" }
+            ]
+        };
+
+        // Create addon directory with a TOC file that has no version
+        var addOnPath = Path.Combine(AddOnsPath, "BrokenAddOn");
+        _mockEnv.FileSystem.Directory.CreateDirectory(addOnPath);
+        _mockEnv.FileSystem.File.WriteAllText(
+            Path.Combine(addOnPath, "BrokenAddOn.toc"),
+            "## Title: Broken\n## Interface: 100200");
+
+        var result = await _updateManager.GetAddOnInstallStatesAsync(manifest);
+
+        var state = result.Single();
+        Assert.That(state.HasLocalError, Is.True);
+        Assert.That(state.IsInstalled, Is.False);
+        Assert.That(state.IsUpdated, Is.False);
+    }
+
+    [Test]
+    public async Task UpdateAddOns_InstallThrows_ReturnsFalseAndContinuesAsync()
+    {
+        var manifest = new AddOnManifest
+        {
+            AddOns = [
+                new AddOnMetadata { Name = "BadAddOn", Version = "1.0.0" },
+                new AddOnMetadata { Name = "GoodAddOn", Version = "1.0.0" },
+            ]
+        };
+        _mockDownloader.SetManifest(manifest);
+        _mockDownloader.AddBundle("BadAddOn", "1.0.0", ["file.lua"], "WrongRoot"); // wrong root → InstallAddOn throws
+        _mockDownloader.AddBundle("GoodAddOn", "1.0.0", ["file.lua"]);
+
+        var result = await _updateManager.UpdateAddOns();
+
+        Assert.That(result, Is.False);
+        Assert.That(_mockEnv.FileSystem.Directory.Exists(Path.Combine(AddOnsPath, "GoodAddOn")), Is.True);
+    }
+
     private void SetupLocalAddOn(string name, string version)
     {
-        var addOnPath = Path.Combine(_addOnsPath, name);
+        var addOnPath = Path.Combine(AddOnsPath, name);
         _mockEnv.FileSystem.Directory.CreateDirectory(addOnPath);
 
         var tocContent = $"## Title: {name}\n## Version: {version}\n## Interface: 100200";

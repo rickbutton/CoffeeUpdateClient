@@ -10,6 +10,7 @@ namespace CoffeeUpdateClient.Utils;
 public class LocalAddOnMetadataLoader
 {
     private readonly IEnv _env;
+    private readonly Config _config;
 
     public enum Status
     {
@@ -26,14 +27,15 @@ public class LocalAddOnMetadataLoader
         "{0}_Standard.toc"
     };
 
-    public LocalAddOnMetadataLoader(IEnv env)
+    public LocalAddOnMetadataLoader(IEnv env, Config config)
     {
         _env = env;
+        _config = config;
     }
 
     public async Task<(AddOnMetadata?, Status)> LoadAddOnMetadataAsync(string name)
     {
-        var addOnsPath = Config.Instance.AddOnsPath;
+        var addOnsPath = _config.AddOnsPath;
 
         if (string.IsNullOrEmpty(addOnsPath))
         {

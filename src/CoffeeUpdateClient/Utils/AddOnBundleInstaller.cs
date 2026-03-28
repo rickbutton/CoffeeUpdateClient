@@ -11,15 +11,17 @@ namespace CoffeeUpdateClient.Utils;
 public class AddOnBundleInstaller
 {
     private readonly IFileSystem _fileSystem;
+    private readonly Config _config;
 
-    public AddOnBundleInstaller(IEnv env)
+    public AddOnBundleInstaller(IEnv env, Config config)
     {
         _fileSystem = env.FileSystem;
+        _config = config;
     }
 
     public bool InstallAddOn(AddOnBundle bundle)
     {
-        var addOnsPath = Config.Instance.AddOnsPath;
+        var addOnsPath = _config.AddOnsPath;
 
         var tempExtractPath = _fileSystem.Path.Combine(_fileSystem.Path.GetTempPath(), $"{bundle.Metadata.Name}-Install-{Guid.NewGuid().ToString()}");
         _fileSystem.Directory.CreateDirectory(tempExtractPath);
@@ -100,13 +102,13 @@ public class AddOnBundleInstaller
 
         foreach (string dir in _fileSystem.Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
         {
-            string dirToCreate = dir.Replace(sourceDir, destinationDir);
+            string dirToCreate = _fileSystem.Path.Combine(destinationDir, _fileSystem.Path.GetRelativePath(sourceDir, dir));
             _fileSystem.Directory.CreateDirectory(dirToCreate);
         }
 
         foreach (string newPath in _fileSystem.Directory.GetFiles(sourceDir, "*.*", SearchOption.AllDirectories))
         {
-            string destPath = newPath.Replace(sourceDir, destinationDir);
+            string destPath = _fileSystem.Path.Combine(destinationDir, _fileSystem.Path.GetRelativePath(sourceDir, newPath));
             _fileSystem.File.Copy(newPath, destPath, true);
         }
     }

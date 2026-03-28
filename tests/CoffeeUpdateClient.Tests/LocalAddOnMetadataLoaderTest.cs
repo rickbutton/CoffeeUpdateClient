@@ -7,30 +7,33 @@ using NUnit.Framework;
 
 namespace CoffeeUpdateClient.Tests;
 
-public class LocalAddOnMetadataLoaderTest : ConfigTestBase
+public class LocalAddOnMetadataLoaderTest
 {
+    private const string AddOnsPath = @"C:\World of Warcraft\_retail_\Interface\AddOns";
+
+    private static LocalAddOnMetadataLoader CreateLoader(MockEnv mockEnv)
+    {
+        var config = new Config { AddOnsPath = AddOnsPath };
+        return new LocalAddOnMetadataLoader(mockEnv, config);
+    }
+
     [Test]
     public async Task LoadAddOnMetadata_StandardTOCFile_ReturnsAddOnMetadataAsync()
     {
-        // Setup test data
         var mockEnv = new MockEnv();
 
         var addOnName = "TestAddOn";
         var addOnVersion = "1.2.3";
-        var addOnsPath = "C:\\World of Warcraft\\_retail_\\Interface\\AddOns";
-        var addOnPath = Path.Combine(addOnsPath, addOnName);
+        var addOnPath = Path.Combine(AddOnsPath, addOnName);
         var tocPath = Path.Combine(addOnPath, $"{addOnName}.toc");
 
-        // Create the directory structure and TOC file
         mockEnv.FileSystem.Directory.CreateDirectory(addOnPath);
         mockEnv.FileSystem.File.WriteAllText(tocPath, $"## Title: Test AddOn\n## Version: {addOnVersion}\n## Interface: 100200");
 
-        var loader = new LocalAddOnMetadataLoader(mockEnv);
+        var loader = CreateLoader(mockEnv);
 
-        // Execute
         var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
 
-        // Verify
         Assert.That(metadata, Is.Not.Null);
         Assert.That(metadata!.Name, Is.EqualTo(addOnName));
         Assert.That(metadata.Version, Is.EqualTo(addOnVersion));
@@ -40,25 +43,20 @@ public class LocalAddOnMetadataLoaderTest : ConfigTestBase
     [Test]
     public async Task LoadAddOnMetadata_MainlineTOCFile_ReturnsAddOnMetadataAsync()
     {
-        // Setup test data
         var mockEnv = new MockEnv();
 
         var addOnName = "TestAddOn";
         var addOnVersion = "2.0.0";
-        var addOnsPath = "C:\\World of Warcraft\\_retail_\\Interface\\AddOns";
-        var addOnPath = Path.Combine(addOnsPath, addOnName);
+        var addOnPath = Path.Combine(AddOnsPath, addOnName);
         var tocPath = Path.Combine(addOnPath, $"{addOnName}_Mainline.toc");
 
-        // Create the directory structure and TOC file
         mockEnv.FileSystem.Directory.CreateDirectory(addOnPath);
         mockEnv.FileSystem.File.WriteAllText(tocPath, $"## Title: Test AddOn Mainline\n## Version: {addOnVersion}\n## Interface: 100200");
 
-        var loader = new LocalAddOnMetadataLoader(mockEnv);
+        var loader = CreateLoader(mockEnv);
 
-        // Execute
         var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
 
-        // Verify
         Assert.That(metadata, Is.Not.Null);
         Assert.That(metadata!.Name, Is.EqualTo(addOnName));
         Assert.That(metadata.Version, Is.EqualTo(addOnVersion));
@@ -68,25 +66,20 @@ public class LocalAddOnMetadataLoaderTest : ConfigTestBase
     [Test]
     public async Task LoadAddOnMetadata_StandardWoWTOCFile_ReturnsAddOnMetadataAsync()
     {
-        // Setup test data
         var mockEnv = new MockEnv();
 
         var addOnName = "TestAddOn";
         var addOnVersion = "3.0.0";
-        var addOnsPath = "C:\\World of Warcraft\\_retail_\\Interface\\AddOns";
-        var addOnPath = Path.Combine(addOnsPath, addOnName);
+        var addOnPath = Path.Combine(AddOnsPath, addOnName);
         var tocPath = Path.Combine(addOnPath, $"{addOnName}_Standard.toc");
 
-        // Create the directory structure and TOC file
         mockEnv.FileSystem.Directory.CreateDirectory(addOnPath);
         mockEnv.FileSystem.File.WriteAllText(tocPath, $"## Title: Test AddOn Standard\n## Version: {addOnVersion}\n## Interface: 11404");
 
-        var loader = new LocalAddOnMetadataLoader(mockEnv);
+        var loader = CreateLoader(mockEnv);
 
-        // Execute
         var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
 
-        // Verify
         Assert.That(metadata, Is.Not.Null);
         Assert.That(metadata.Name, Is.EqualTo(addOnName));
         Assert.That(metadata.Version, Is.EqualTo(addOnVersion));
@@ -96,27 +89,21 @@ public class LocalAddOnMetadataLoaderTest : ConfigTestBase
     [Test]
     public async Task LoadAddOnMetadata_FallbackToAlternativeTOCFiles_ReturnsAddOnMetadataAsync()
     {
-        // Setup test data
         var mockEnv = new MockEnv();
 
         var addOnName = "TestAddOn";
         var addOnVersion = "2.0.0";
-        var addOnsPath = "C:\\World of Warcraft\\_retail_\\Interface\\AddOns";
-        var addOnPath = Path.Combine(addOnsPath, addOnName);
+        var addOnPath = Path.Combine(AddOnsPath, addOnName);
 
-        // Create the directory structure but skip the default TOC
-        // Instead create the Mainline version
         mockEnv.FileSystem.Directory.CreateDirectory(addOnPath);
         mockEnv.FileSystem.File.WriteAllText(
             Path.Combine(addOnPath, $"{addOnName}_Mainline.toc"),
             $"## Title: Test AddOn Mainline\n## Version: {addOnVersion}\n## Interface: 100200");
 
-        var loader = new LocalAddOnMetadataLoader(mockEnv);
+        var loader = CreateLoader(mockEnv);
 
-        // Execute
         var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
 
-        // Verify
         Assert.That(metadata, Is.Not.Null);
         Assert.That(metadata!.Name, Is.EqualTo(addOnName));
         Assert.That(metadata.Version, Is.EqualTo(addOnVersion));
@@ -127,12 +114,9 @@ public class LocalAddOnMetadataLoaderTest : ConfigTestBase
     public async Task LoadAddOnMetadata_TOCFileDoesNotExist_ReturnsNullAsync()
     {
         var mockEnv = new MockEnv();
+        var loader = CreateLoader(mockEnv);
 
-        var addOnName = "NonExistentAddOn";
-
-        var loader = new LocalAddOnMetadataLoader(mockEnv);
-
-        var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
+        var (metadata, status) = await loader.LoadAddOnMetadataAsync("NonExistentAddOn");
 
         Assert.That(metadata, Is.Null);
         Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.Status.NotFound));
@@ -141,14 +125,11 @@ public class LocalAddOnMetadataLoaderTest : ConfigTestBase
     [Test]
     public async Task LoadAddOnMetadata_TOCFilesExistButNoVersion_ReturnsNullAsync()
     {
-        // Setup test data
         var mockEnv = new MockEnv();
 
         var addOnName = "AddOnWithoutVersion";
-        var addOnsPath = "C:\\World of Warcraft\\_retail_\\Interface\\AddOns";
-        var addOnPath = Path.Combine(addOnsPath, addOnName);
+        var addOnPath = Path.Combine(AddOnsPath, addOnName);
 
-        // Create the directory structure and multiple TOC files without version
         mockEnv.FileSystem.Directory.CreateDirectory(addOnPath);
         mockEnv.FileSystem.File.WriteAllText(
             Path.Combine(addOnPath, $"{addOnName}.toc"),
@@ -157,30 +138,38 @@ public class LocalAddOnMetadataLoaderTest : ConfigTestBase
             Path.Combine(addOnPath, $"{addOnName}_Mainline.toc"),
             "## Title: AddOn Without Version Mainline\n## Interface: 100200");
 
-        var loader = new LocalAddOnMetadataLoader(mockEnv);
+        var loader = CreateLoader(mockEnv);
 
-        // Execute
         var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
 
-        // Verify
         Assert.That(metadata, Is.Null);
         Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.Status.Error));
     }
 
     [Test]
+    public async Task LoadAddOnMetadata_EmptyAddOnsPath_ReturnsNotFoundAsync()
+    {
+        var mockEnv = new MockEnv();
+        var config = new Config { AddOnsPath = "" };
+        var loader = new LocalAddOnMetadataLoader(mockEnv, config);
+
+        var (metadata, status) = await loader.LoadAddOnMetadataAsync("AnyAddOn");
+
+        Assert.That(metadata, Is.Null);
+        Assert.That(status, Is.EqualTo(LocalAddOnMetadataLoader.Status.NotFound));
+    }
+
+    [Test]
     public async Task LoadAddOnMetadata_PrioritizesDefaultTOCOverAlternativesAsync()
     {
-        // Setup test data
         var mockEnv = new MockEnv();
 
         var addOnName = "PriorityAddOn";
         var defaultVersion = "1.0.0";
         var mainlineVersion = "2.0.0";
         var standardVersion = "3.0.0";
-        var addOnsPath = "C:\\World of Warcraft\\_retail_\\Interface\\AddOns";
-        var addOnPath = Path.Combine(addOnsPath, addOnName);
+        var addOnPath = Path.Combine(AddOnsPath, addOnName);
 
-        // Create the directory structure and multiple TOC files with different versions
         mockEnv.FileSystem.Directory.CreateDirectory(addOnPath);
         mockEnv.FileSystem.File.WriteAllText(
             Path.Combine(addOnPath, $"{addOnName}.toc"),
@@ -192,12 +181,10 @@ public class LocalAddOnMetadataLoaderTest : ConfigTestBase
             Path.Combine(addOnPath, $"{addOnName}_Standard.toc"),
             $"## Title: Priority AddOn Standard\n## Version: {standardVersion}\n## Interface: 11404");
 
-        var loader = new LocalAddOnMetadataLoader(mockEnv);
+        var loader = CreateLoader(mockEnv);
 
-        // Execute
         var (metadata, status) = await loader.LoadAddOnMetadataAsync(addOnName);
 
-        // Verify - should use the default TOC file (first in the list)
         Assert.That(metadata, Is.Not.Null);
         Assert.That(metadata!.Name, Is.EqualTo(addOnName));
         Assert.That(metadata.Version, Is.EqualTo(defaultVersion));

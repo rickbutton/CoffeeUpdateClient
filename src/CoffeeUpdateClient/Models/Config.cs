@@ -21,35 +21,4 @@ public class Config
 
     public delegate void ConfigUpdatedHandler(Config config);
     public event ConfigUpdatedHandler? ConfigUpdated;
-
-    private static Config? _instance;
-    public static void InitConfigSingleton(Config config)
-    {
-        if (_instance != null)
-        {
-            throw new InvalidOperationException("Config.Instance is already initialized.");
-        }
-        _instance = config;
-    }
-
-    public static void ClearConfigSingleton()
-    {
-        if (_instance == null)
-        {
-            throw new InvalidOperationException("Config.Instance is already cleared.");
-        }
-        _instance = null;
-    }
-
-    public static Config Instance
-    {
-        get
-        {
-            if (_instance == null)
-            {
-                throw new InvalidOperationException("Config.Instance has not been initialized.");
-            }
-            return _instance!;
-        }
-    }
 }

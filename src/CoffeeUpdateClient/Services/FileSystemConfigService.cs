@@ -1,10 +1,9 @@
 using Path = System.IO.Path;
 using System.Text.Json;
+using System.IO;
 using CoffeeUpdateClient.Models;
 using CoffeeUpdateClient.Utils;
-using Windows.System;
 using Serilog;
-using System.IO;
 
 namespace CoffeeUpdateClient.Services;
 
@@ -26,15 +25,7 @@ public class FileSystemConfigService : IConfigService
         var config = new Config();
 
         var installPath = _wowLocator.GetWoWInstallPath();
-        var addOnsPath = AddOnPathResolver.NormalizeAddOnsDirectory(installPath);
-        if (addOnsPath != null)
-        {
-            config.AddOnsPath = addOnsPath;
-        }
-        else
-        {
-            config.AddOnsPath = string.Empty;
-        }
+        config.AddOnsPath = AddOnPathResolver.NormalizeAddOnsDirectory(installPath) ?? string.Empty;
 
         return config;
     }

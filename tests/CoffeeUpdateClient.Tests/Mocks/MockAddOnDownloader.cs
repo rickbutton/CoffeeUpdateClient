@@ -29,14 +29,14 @@ public class MockAddOnDownloader : IAddOnDownloader
         _shouldReturnNullBundle = shouldReturnNull;
     }
 
-    public void AddBundle(string addOnName, string version, string[]? files = null)
+    public void AddBundle(string addOnName, string version, string[]? files = null, string? rootFolderName = null)
     {
         var key = $"{addOnName}-{version}";
         var metadata = new AddOnMetadata { Name = addOnName, Version = version };
 
         if (files != null)
         {
-            var bundle = CreateBundle(metadata, files);
+            var bundle = CreateBundle(metadata, files, rootFolderName);
             _bundles[key] = bundle;
         }
         else
@@ -62,14 +62,15 @@ public class MockAddOnDownloader : IAddOnDownloader
         return _bundles.TryGetValue(key, out var bundle) ? bundle : null;
     }
 
-    private AddOnBundle CreateBundle(AddOnMetadata metadata, string[] fileNames)
+    private AddOnBundle CreateBundle(AddOnMetadata metadata, string[] fileNames, string? rootFolderName = null)
     {
+        var root = rootFolderName ?? metadata.Name;
         var memoryStream = new MemoryStream();
         using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
         {
             foreach (var fileName in fileNames)
             {
-                var entry = archive.CreateEntry($"{metadata.Name}/{fileName}");
+                var entry = archive.CreateEntry($"{root}/{fileName}");
                 using (var entryStream = entry.Open())
                 using (var streamWriter = new StreamWriter(entryStream, Encoding.UTF8))
                 {
