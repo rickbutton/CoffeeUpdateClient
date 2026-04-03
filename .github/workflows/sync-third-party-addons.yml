@@ -2,7 +2,7 @@ name: sync third-party addons
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # every 6 hours
+    - cron: '*/5 * * * *' # every 5 minutes
   workflow_dispatch:
 
 jobs:
