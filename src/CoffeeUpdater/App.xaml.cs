@@ -8,7 +8,6 @@ using Microsoft.Extensions.Hosting;
 using Serilog;
 using Hardcodet.Wpf.TaskbarNotification;
 using System.Windows.Controls;
-using Velopack;
 using System.Diagnostics;
 
 namespace CoffeeUpdater;
@@ -23,13 +22,6 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-
-        // Velopack lifecycle hooks must run first
-        var hooks = new VelopackHooks(new WindowsRegistryReader());
-        VelopackApp.Build()
-            .OnAfterInstallFastCallback(_ => hooks.OnInstall())
-            .OnBeforeUninstallFastCallback(_ => hooks.OnUninstall())
-            .Run();
 
         // Single instance check
         _singleInstanceGuard = new SingleInstanceGuard();

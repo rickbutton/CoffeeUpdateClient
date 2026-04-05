@@ -19,20 +19,9 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
-    - name: Install Velopack CLI
-      run: dotnet tool install -g vpk
-
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --no-restore -c Release
-
-    - name: Publish
-      run: dotnet publish -c Release
-
-    - name: Pack with Velopack
-      run: vpk pack --packId CoffeeUpdater --packVersion ${{ github.ref_name }} --packDir build/publish/CoffeeUpdater/release --mainExe CoffeeUpdater.exe
+    - name: Build installer
+      run: .\scripts\build-installer.ps1 -Version ${{ github.ref_name }}
+      shell: pwsh
 
     - name: Release
       uses: softprops/action-gh-release@v2

@@ -11,6 +11,7 @@
     <SelfContained>false</SelfContained>
     <DebugType>embedded</DebugType>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <StartupObject>CoffeeUpdater.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
