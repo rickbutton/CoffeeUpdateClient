@@ -283,6 +283,22 @@ public class AddOnBundleInstallerTest
     }
 
     [Test]
+    public void InstallAddOn_CleansStagingDirectoryAfterInstall()
+    {
+        var bundle = CreateBundle("MyAddOn", ["file1.lua"]);
+
+        _installer.InstallAddOn(bundle);
+
+        var interfacePath = _env.FileSystem.Path.GetDirectoryName(_addOnsPath)!;
+        var stagingDir = _env.FileSystem.Path.Combine(interfacePath, "CoffeeUpdaterStaging");
+        if (_env.FileSystem.Directory.Exists(stagingDir))
+        {
+            var remaining = _env.FileSystem.Directory.GetDirectories(stagingDir);
+            Assert.That(remaining, Is.Empty, "Staging directory should be empty after install");
+        }
+    }
+
+    [Test]
     public void InstallAddOn_EmptyBundle_ThrowsInvalidOperationException()
     {
         var memoryStream = new MemoryStream();

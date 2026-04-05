@@ -1,4 +1,3 @@
-using System.IO;
 using System.IO.Abstractions;
 using System.IO.Compression;
 using System.Linq;
@@ -22,10 +21,10 @@ public class AddOnBundleInstaller
     public List<string> InstallAddOn(AddOnBundle bundle)
     {
         var addOnsPath = _config.AddOnsPath;
-
-        var tempExtractPath = _fileSystem.Path.Combine(_fileSystem.Path.GetTempPath(), $"{bundle.Metadata.Name}-Install-{Guid.NewGuid().ToString()}");
-        _fileSystem.Directory.CreateDirectory(tempExtractPath);
-        Log.Information("Extracting add-on bundle for '{AddOnName}' to temporary path: {TempPath}", bundle.Metadata.Name, tempExtractPath);
+        var interfacePath = _fileSystem.Path.GetDirectoryName(addOnsPath)!;
+        var stagingPath = _fileSystem.Path.Combine(interfacePath, "CoffeeUpdaterStaging", $"{bundle.Metadata.Name}-{Guid.NewGuid()}");
+        _fileSystem.Directory.CreateDirectory(stagingPath);
+        Log.Information("Extracting add-on bundle for '{AddOnName}' to staging path: {StagingPath}", bundle.Metadata.Name, stagingPath);
 
         try
         {
@@ -43,12 +42,11 @@ public class AddOnBundleInstaller
 
                 foreach (var entry in archive.Entries)
                 {
-                    var fullPath = _fileSystem.Path.Combine(tempExtractPath, entry.FullName).Replace("/", _fileSystem.Path.DirectorySeparatorChar.ToString());
+                    var fullPath = _fileSystem.Path.Combine(stagingPath, entry.FullName).Replace("/", _fileSystem.Path.DirectorySeparatorChar.ToString());
                     Log.Verbose("Processing entry: {EntryName} -> {FullPath}", entry.Name, fullPath);
 
                     if (entry.Name == "")
                     {
-                        // entry is a directory
                         if (!_fileSystem.Directory.Exists(fullPath))
                         {
                             _fileSystem.Directory.CreateDirectory(fullPath);
@@ -72,7 +70,7 @@ public class AddOnBundleInstaller
 
                 foreach (var folder in rootFolders)
                 {
-                    var sourceDir = _fileSystem.Path.Combine(tempExtractPath, folder);
+                    var sourceDir = _fileSystem.Path.Combine(stagingPath, folder);
                     var targetDir = _fileSystem.Path.Combine(addOnsPath, folder);
 
                     if (_fileSystem.Directory.Exists(targetDir))
@@ -80,7 +78,7 @@ public class AddOnBundleInstaller
                         _fileSystem.Directory.Delete(targetDir, true);
                     }
 
-                    DeepCopy(sourceDir, targetDir);
+                    _fileSystem.Directory.Move(sourceDir, targetDir);
 
                     var gitDir = _fileSystem.Path.Combine(targetDir, ".git");
                     if (!_fileSystem.Directory.Exists(gitDir))
@@ -94,9 +92,9 @@ public class AddOnBundleInstaller
         }
         finally
         {
-            if (_fileSystem.Directory.Exists(tempExtractPath))
+            if (_fileSystem.Directory.Exists(stagingPath))
             {
-                _fileSystem.Directory.Delete(tempExtractPath, true);
+                _fileSystem.Directory.Delete(stagingPath, true);
             }
         }
     }
@@ -114,25 +112,5 @@ public class AddOnBundleInstaller
             }
         }
         _config.RemoveInstalledFolders(name);
-    }
-
-    private void DeepCopy(string sourceDir, string destinationDir)
-    {
-        if (!_fileSystem.Directory.Exists(destinationDir))
-        {
-            _fileSystem.Directory.CreateDirectory(destinationDir);
-        }
-
-        foreach (string dir in _fileSystem.Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
-        {
-            string dirToCreate = _fileSystem.Path.Combine(destinationDir, _fileSystem.Path.GetRelativePath(sourceDir, dir));
-            _fileSystem.Directory.CreateDirectory(dirToCreate);
-        }
-
-        foreach (string newPath in _fileSystem.Directory.GetFiles(sourceDir, "*.*", SearchOption.AllDirectories))
-        {
-            string destPath = _fileSystem.Path.Combine(destinationDir, _fileSystem.Path.GetRelativePath(sourceDir, newPath));
-            _fileSystem.File.Copy(newPath, destPath, true);
-        }
     }
 }
