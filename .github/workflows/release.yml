@@ -50,6 +50,24 @@ jobs:
           --disablePathStyle
       shell: pwsh
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '22'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Set public-read ACL on release artifacts
+      run: node scripts/set-s3-public-acl.js
+      env:
+        BUCKET_ENDPOINT: ${{ secrets.BUCKET_ENDPOINT }}
+        BUCKET_REGION: ${{ secrets.BUCKET_REGION }}
+        BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+        BUCKET_ACCESS_KEY_ID: ${{ secrets.BUCKET_ACCESS_KEY_ID }}
+        BUCKET_SECRET_ACCESS_KEY: ${{ secrets.BUCKET_SECRET_ACCESS_KEY }}
+        S3_PREFIX: releases/
+
     - name: Release
       uses: softprops/action-gh-release@v2
       with:
