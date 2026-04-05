@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const child = require("child_process");
 const fs = require("fs");
+const path = require("path");
 const { S3 } = require("@aws-sdk/client-s3");
 
 const {
@@ -22,19 +23,8 @@ const s3Client = new S3({
     }
 });
 
-async function uploadString(name, str) {
-    const uploadResult = await s3Client.putObject({
-        ACL: "public-read",
-        Bucket: BUCKET_NAME,
-        Key: name,
-        Body: Buffer.from(str, "utf-8"),
-        ContentType: "plain/text",
-    });
-    console.log("string upload result:", uploadResult);
-}
-
-async function uploadFile(path, destPath, contentType) {
-    const fileStream = fs.createReadStream(path);
+async function uploadFile(filePath, destPath, contentType) {
+    const fileStream = fs.createReadStream(filePath);
     const uploadResult = await s3Client.putObject({
         ACL: "public-read",
         Bucket: BUCKET_NAME,
@@ -42,32 +32,37 @@ async function uploadFile(path, destPath, contentType) {
         Body: fileStream,
         ContentType: contentType,
     });
-    console.log("file upload result:", uploadResult);
+    console.log(`uploaded ${destPath}:`, uploadResult);
+}
+
+function getContentType(fileName) {
+    if (fileName.endsWith(".nupkg")) return "application/octet-stream";
+    if (fileName.endsWith(".exe")) return "application/vnd.microsoft.portable-executable";
+    return "application/octet-stream";
 }
 
 async function main() {
-    console.log("fetching latest release tag for CoffeeUpdateClient...");
+    console.log("fetching latest release tag for CoffeeUpdater...");
     const latestTag = child.execSync("gh release list -L 1 --json tagName -q \".[].tagName\"").toString().replace(/^\s+|\s+$/g, "");
-    console.log("latest release tag for CoffeeUpdateClient:", latestTag);
+    console.log("latest release tag for CoffeeUpdater:", latestTag);
 
-    console.log("downloading latest releases...");
-    child.execSync(`gh release download ${latestTag} -D release --clobber -p "*.zip"`, { stdio: "inherit" });
+    console.log("downloading latest release assets...");
+    child.execSync(`gh release download ${latestTag} -D release --clobber`, { stdio: "inherit" });
 
-    const clientName = `CoffeeUpdateClient-${latestTag}.zip`;
-    const clientPath = `release/${clientName}`;
+    // Upload all Velopack release artifacts to the releases/ prefix in S3
+    const releaseDir = "release";
+    const files = fs.readdirSync(releaseDir);
+    console.log("release assets:", files);
 
-    await uploadFile(clientPath, `client/${clientName}`, "application/vnd.microsoft.portable-executable");
+    for (const file of files) {
+        const filePath = path.join(releaseDir, file);
+        const destPath = `releases/${file}`;
+        const contentType = getContentType(file);
+        console.log(`uploading ${file} -> ${destPath}`);
+        await uploadFile(filePath, destPath, contentType);
+    }
 
-    const clientUrl = `https://${BUCKET_NAME}.${BUCKET_ENDPOINT}/client/${clientName}`;
-    const manifest = `<?xml version="1.0" encoding="UTF-8"?>
-<item>
-  <version>${latestTag}</version>
-  <url>${clientUrl}</url>
-  <mandatory mode="2">true</mandatory>
-</item>`;
-    console.log("updating client.xml with latest versions:", manifest);
-    await uploadString("client.xml", manifest);
-    console.log("Client URL:", clientUrl);
+    console.log("all release artifacts uploaded successfully");
 }
 
 main();

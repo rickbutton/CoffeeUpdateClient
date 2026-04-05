@@ -1,8 +1,8 @@
-# CoffeeUpdateClient
+# CoffeeUpdater
 
 ## What This Is
 
-A WPF Windows desktop app that auto-discovers a World of Warcraft installation via the registry, then downloads and installs (or updates) specific WoW addons from a remote manifest hosted on DigitalOcean Spaces. The app is distributed as a single self-contained `.exe` and self-updates via AutoUpdater.NET.
+A WPF Windows desktop app that auto-discovers a World of Warcraft installation via the registry, then downloads and installs (or updates) specific WoW addons from a remote manifest hosted on DigitalOcean Spaces. The app runs as a system tray background application, polling for addon updates every 30 seconds. It is distributed via Velopack (installer + auto-updater) and auto-starts on Windows login.
 
 ## Build & Run
 
@@ -28,25 +28,30 @@ Output goes to `build/` (set via `Directory.Build.props`).
 ## Project Structure
 
 ```
-src/CoffeeUpdateClient/
-  App.xaml.cs          # DI setup, Serilog init, AutoUpdater config, startup
-  MainWindow.xaml.cs   # UI + inner State class (MVVM via PropertyChanged.Fody)
-  Models/              # Config, AddOnMetadata, AddOnBundle, AddOnManifest, AddOnInstallState
-  Services/            # IEnv/WindowsEnv, IConfigService, IWoWLocator, IAddOnDownloader + impls
+src/CoffeeUpdater/
+  App.xaml.cs          # DI setup, Serilog init, Velopack hooks, tray icon, startup
+  App.xaml             # TaskbarIcon resource with context menu
+  MainWindow.xaml.cs   # Status window UI + inner State class (MVVM via PropertyChanged.Fody)
+  Models/              # Config, AddOnMetadata, AddOnBundle, AddOnManifest, AddOnInstallState, ManifestResult
+  Services/            # IEnv/WindowsEnv, IConfigService, IWoWLocator, IAddOnDownloader + impls,
+                       # AddOnSyncService (BackgroundService for periodic polling)
   Utils/               # AddOnUpdateManager, AddOnBundleInstaller, LocalAddOnMetadataLoader,
-                       # AddOnPathResolver, TOCParser, InstallLogCollector, AppDataFolder
-tests/CoffeeUpdateClient.Tests/
+                       # AddOnPathResolver, TOCParser, InstallLogCollector, AppDataFolder,
+                       # SingleInstanceGuard, VelopackHooks, RelayCommand
+tests/CoffeeUpdater.Tests/
   Mocks/               # MockEnv, MockWowLocator, MockConfigService, MockAddOnDownloader
   *Test.cs             # NUnit 4 test files
 ```
 
 ## Key Design Patterns
 
-- **DI container**: `Microsoft.Extensions.DependencyInjection`, all singletons, built in `App.xaml.cs`
+- **System tray app**: Runs as a background tray icon (Hardcodet.NotifyIcon.Wpf). MainWindow is a show/hide status window, not the primary lifecycle owner. `ShutdownMode.OnExplicitShutdown`.
+- **Background sync**: `AddOnSyncService` (a `BackgroundService`) polls the manifest every 30s using `PeriodicTimer`. Uses ETag-based conditional HTTP requests to skip work when nothing changed.
+- **Single instance**: `SingleInstanceGuard` uses a named Mutex + named pipe IPC. Second launches signal the running instance to show its window, then exit.
+- **DI container**: `Microsoft.Extensions.DependencyInjection` + `Microsoft.Extensions.Hosting`, all singletons, built in `App.xaml.cs`
 - **File system abstraction**: `TestableIO.System.IO.Abstractions` used throughout for testability; `IEnv` provides `IFileSystem`
 - **MVVM**: `MainWindow` has an inner `State` class bound to `DataContext`; property notifications woven by `PropertyChanged.Fody`
-- **Config singleton**: `Config` uses a static singleton (`Config.Instance`) initialized from DI at startup. Tests use `ConfigTestBase` to init/clear it around each test
-- **Logging**: Serilog to console + rolling file at `%AppData%\Roaming\CoffeeUpdateClient\client.log`
+- **Logging**: Serilog to console + rolling file at `%AppData%\Roaming\CoffeeUpdater\client.log`
 
 ## Addon Path Expectations
 
@@ -61,10 +66,17 @@ For each addon, `LocalAddOnMetadataLoader` tries these filenames in order:
 
 The first file found with a `## Version:` line wins.
 
+## Auto-Start & Installation
+
+- Velopack installs to `%LocalAppData%\CoffeeUpdater` (per-user, no admin required)
+- On install, `VelopackHooks.OnInstall()` sets a Registry Run key (`HKCU\...\Run`) so the app starts automatically on login
+- On uninstall, the Run key is removed
+- Auto-start is always on; there is no user toggle (all users are known and expect this behavior)
+
 ## Release Pipeline
 
-1. Push a semver tag (`*.*.*`) → `release.yml` builds, publishes, creates a GitHub release ZIP
-2. After release completes → `upload-release-to-s3.js` uploads the ZIP and generates `client.xml` for AutoUpdater.NET
-3. On next app launch, AutoUpdater.NET checks `client.xml`, prompts for update (mandatory, no skip/remind)
+1. Push a semver tag (`*.*.*`) → `release.yml` builds, publishes, runs `vpk pack` to produce Velopack artifacts, creates a GitHub release with all artifacts
+2. After release completes → `upload-release-to-s3.js` uploads all Velopack artifacts to the `releases/` prefix on DigitalOcean Spaces
+3. Running app checks for self-updates via Velopack's `UpdateManager` pointing at the `releases/` URL
 
-AutoUpdater is disabled in `#if DEBUG` builds.
+Velopack update checks are disabled in `#if DEBUG` builds.
