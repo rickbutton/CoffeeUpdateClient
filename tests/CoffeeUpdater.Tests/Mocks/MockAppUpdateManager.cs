@@ -27,7 +27,7 @@ public class MockAppUpdateManager : IAppUpdateManager
         return Task.CompletedTask;
     }
 
-    public void ApplyUpdatesAndRestart(UpdateInfo updateInfo)
+    public void WaitExitThenApplyUpdates(UpdateInfo updateInfo, bool silent, bool restart)
     {
         ApplyCallCount++;
     }

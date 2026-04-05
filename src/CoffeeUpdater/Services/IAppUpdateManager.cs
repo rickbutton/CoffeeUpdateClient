@@ -6,5 +6,5 @@ public interface IAppUpdateManager
 {
     Task<UpdateInfo?> CheckForUpdatesAsync();
     Task DownloadUpdatesAsync(UpdateInfo updateInfo);
-    void ApplyUpdatesAndRestart(UpdateInfo updateInfo);
+    void WaitExitThenApplyUpdates(UpdateInfo updateInfo, bool silent, bool restart);
 }

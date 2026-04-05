@@ -31,6 +31,7 @@ public class AppUpdateServiceTest
         _syncService = new AddOnSyncService(addonUpdateManager, config);
 
         _service = new AppUpdateService(_syncService, _mockUpdateManager);
+        _service.ExitApplication = () => { };
     }
 
     [TearDown]
@@ -66,6 +67,8 @@ public class AppUpdateServiceTest
     [Test]
     public async Task CheckAndApply_UpdateAvailable_DownloadsAndApplies()
     {
+        var exitCalled = false;
+        _service.ExitApplication = () => exitCalled = true;
         _mockUpdateManager.UpdateInfoToReturn = CreateUpdateInfo();
 
         await _service.CheckAndApplyUpdateAsync(CancellationToken.None);
@@ -73,6 +76,7 @@ public class AppUpdateServiceTest
         Assert.That(_mockUpdateManager.CheckCallCount, Is.EqualTo(1));
         Assert.That(_mockUpdateManager.DownloadCallCount, Is.EqualTo(1));
         Assert.That(_mockUpdateManager.ApplyCallCount, Is.EqualTo(1));
+        Assert.That(exitCalled, Is.True);
     }
 
     [Test]

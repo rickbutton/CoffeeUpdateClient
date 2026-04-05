@@ -18,6 +18,6 @@ public class VelopackUpdateManager : IAppUpdateManager
     public Task DownloadUpdatesAsync(UpdateInfo updateInfo)
         => _updateManager.DownloadUpdatesAsync(updateInfo);
 
-    public void ApplyUpdatesAndRestart(UpdateInfo updateInfo)
-        => _updateManager.ApplyUpdatesAndRestart(updateInfo);
+    public void WaitExitThenApplyUpdates(UpdateInfo updateInfo, bool silent, bool restart)
+        => _updateManager.WaitExitThenApplyUpdates(updateInfo, silent, restart);
 }

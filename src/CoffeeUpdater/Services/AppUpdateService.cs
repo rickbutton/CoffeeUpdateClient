@@ -9,6 +9,8 @@ public class AppUpdateService : BackgroundService
     private readonly AddOnSyncService _syncService;
     private readonly IAppUpdateManager _updateManager;
 
+    internal Action ExitApplication { get; set; } = () => Environment.Exit(0);
+
     public AppUpdateService(AddOnSyncService syncService, IAppUpdateManager updateManager)
     {
         _syncService = syncService;
@@ -43,7 +45,8 @@ public class AppUpdateService : BackgroundService
             paused = true;
 
             Log.Information("Applying app update and restarting");
-            _updateManager.ApplyUpdatesAndRestart(updateInfo);
+            _updateManager.WaitExitThenApplyUpdates(updateInfo, silent: true, restart: true);
+            ExitApplication();
         }
         catch (OperationCanceledException)
         {
