@@ -39,6 +39,9 @@ jobs:
     - name: Format check
       run: dotnet format --verify-no-changes --verbosity detailed
 
+    - name: Install RelaxVersioner CLI
+      run: dotnet tool install -g rv-cli
+
     - name: Build installer
       run: .\scripts\build-installer.ps1 -SkipDefenderExclusions
       shell: pwsh
