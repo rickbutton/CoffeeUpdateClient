@@ -38,3 +38,13 @@ jobs:
       
     - name: Format check
       run: dotnet format --verify-no-changes --verbosity detailed
+
+    - name: Build installer
+      run: .\scripts\build-installer.ps1 -SkipDefenderExclusions
+      shell: pwsh
+
+    - name: Upload installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: installer
+        path: Releases/
