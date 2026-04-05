@@ -2,6 +2,8 @@ name: dotnet test
 
 on:
   push:
+    tags-ignore:
+      - '**'
   pull_request:
   workflow_dispatch:
 
