@@ -15,6 +15,9 @@ public class MockRegistryReader : IRegistryReader
 
     public IRegistryKeyReader? OpenSubKey(string path) =>
         _keys.TryGetValue(path, out var key) ? key : null;
+
+    public IRegistryKeyReader? OpenSubKey(string path, bool writable) =>
+        _keys.TryGetValue(path, out var key) ? key : null;
 }
 
 public class MockRegistryKeyReader : IRegistryKeyReader
@@ -31,7 +34,13 @@ public class MockRegistryKeyReader : IRegistryKeyReader
 
     public void AddNullSubKey(string name) => _subKeys[name] = null;
 
-    public void SetValue(string name, object? value) => _values[name] = value;
+    public void SetValue(string name, object value) => _values[name] = value;
+
+    public void DeleteValue(string name, bool throwOnMissingValue)
+    {
+        if (!_values.Remove(name) && throwOnMissingValue)
+            throw new ArgumentException($"Value '{name}' not found");
+    }
 
     public string[] GetSubKeyNames() => [.. _subKeys.Keys];
 

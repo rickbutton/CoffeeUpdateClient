@@ -128,4 +128,15 @@ public class LocalFileAddOnDownloaderTest
 
         Assert.That(result, Is.Null);
     }
+
+    [Test]
+    public async Task GetLatestManifestAsync_JsonNull_ReturnsFailed()
+    {
+        _env.MockFileSystem.AddFile(@"C:\local-manifest\manifest.json", new MockFileData("null"));
+
+        var result = await _downloader.GetLatestManifestAsync();
+
+        Assert.That(result.Status, Is.EqualTo(ManifestResult.ResultStatus.Failed));
+        Assert.That(result.Manifest, Is.Null);
+    }
 }

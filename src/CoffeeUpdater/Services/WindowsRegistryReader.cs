@@ -1,7 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Win32;
 
 namespace CoffeeUpdater.Services;
 
+[ExcludeFromCodeCoverage]
 public class WindowsRegistryReader : IRegistryReader
 {
     public IRegistryKeyReader? OpenSubKey(string path)
@@ -9,8 +11,15 @@ public class WindowsRegistryReader : IRegistryReader
         var key = Registry.LocalMachine.OpenSubKey(path);
         return key == null ? null : new WindowsRegistryKeyReader(key);
     }
+
+    public IRegistryKeyReader? OpenSubKey(string path, bool writable)
+    {
+        var key = Registry.CurrentUser.OpenSubKey(path, writable);
+        return key == null ? null : new WindowsRegistryKeyReader(key);
+    }
 }
 
+[ExcludeFromCodeCoverage]
 internal sealed class WindowsRegistryKeyReader : IRegistryKeyReader
 {
     private readonly RegistryKey _key;
@@ -26,6 +35,11 @@ internal sealed class WindowsRegistryKeyReader : IRegistryKeyReader
     }
 
     public object? GetValue(string name) => _key.GetValue(name);
+
+    public void SetValue(string name, object value) => _key.SetValue(name, value);
+
+    public void DeleteValue(string name, bool throwOnMissingValue) =>
+        _key.DeleteValue(name, throwOnMissingValue);
 
     public void Dispose() => _key.Dispose();
 }

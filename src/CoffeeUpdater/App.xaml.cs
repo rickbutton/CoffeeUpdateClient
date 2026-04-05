@@ -25,9 +25,10 @@ public partial class App : Application
         base.OnStartup(e);
 
         // Velopack lifecycle hooks must run first
+        var hooks = new VelopackHooks(new WindowsRegistryReader());
         VelopackApp.Build()
-            .OnAfterInstallFastCallback(_ => VelopackHooks.OnInstall())
-            .OnBeforeUninstallFastCallback(_ => VelopackHooks.OnUninstall())
+            .OnAfterInstallFastCallback(_ => hooks.OnInstall())
+            .OnBeforeUninstallFastCallback(_ => hooks.OnUninstall())
             .Run();
 
         // Single instance check

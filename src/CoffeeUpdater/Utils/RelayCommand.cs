@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Windows.Input;
 
 namespace CoffeeUpdater.Utils;
@@ -11,6 +12,7 @@ public class RelayCommand : ICommand
         _execute = execute;
     }
 
+    [ExcludeFromCodeCoverage]
     public event EventHandler? CanExecuteChanged
     {
         add { }

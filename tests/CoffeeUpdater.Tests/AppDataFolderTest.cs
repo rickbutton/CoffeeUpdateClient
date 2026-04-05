@@ -15,14 +15,14 @@ public class AppDataFolderTest
 
         appDataFolder.EnsurePathExists();
 
-        Assert.That(env.FileSystem.Directory.Exists(@"C:\Users\testuser\AppData\Roaming\CoffeeUpdater"), Is.True);
+        Assert.That(env.FileSystem.Directory.Exists(@"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient"), Is.True);
     }
 
     [Test]
     public void EnsurePathExists_DoesNotThrowWhenDirectoryAlreadyExists()
     {
         var env = new MockEnv();
-        env.MockFileSystem.AddDirectory(@"C:\Users\testuser\AppData\Roaming\CoffeeUpdater");
+        env.MockFileSystem.AddDirectory(@"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient");
         var appDataFolder = new AppDataFolder(env);
 
         Assert.DoesNotThrow(() => appDataFolder.EnsurePathExists());

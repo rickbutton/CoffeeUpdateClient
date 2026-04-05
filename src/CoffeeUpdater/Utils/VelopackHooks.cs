@@ -1,24 +1,34 @@
-using Microsoft.Win32;
+using CoffeeUpdater.Services;
 
 namespace CoffeeUpdater.Utils;
 
-public static class VelopackHooks
+public class VelopackHooks
 {
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string AppName = "CoffeeUpdater";
 
-    public static void OnInstall()
-    {
-        var exePath = Environment.ProcessPath;
-        if (exePath == null) return;
+    private readonly IRegistryReader _registry;
+    private readonly string? _exePath;
 
-        using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
-        key?.SetValue(AppName, $"\"{exePath}\"");
+    public VelopackHooks(IRegistryReader registry) : this(registry, Environment.ProcessPath) { }
+
+    public VelopackHooks(IRegistryReader registry, string? exePath)
+    {
+        _registry = registry;
+        _exePath = exePath;
     }
 
-    public static void OnUninstall()
+    public void OnInstall()
     {
-        using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
+        if (_exePath == null) return;
+
+        using var key = _registry.OpenSubKey(RunKeyPath, writable: true);
+        key?.SetValue(AppName, $"\"{_exePath}\"");
+    }
+
+    public void OnUninstall()
+    {
+        using var key = _registry.OpenSubKey(RunKeyPath, writable: true);
         key?.DeleteValue(AppName, throwOnMissingValue: false);
     }
 }

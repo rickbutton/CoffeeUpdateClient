@@ -18,7 +18,7 @@ public class FileSystemConfigServiceTest
         var service = new FileSystemConfigService(mockEnv, appDataFolder, wowLocator);
         await service.GetConfigAsync();
 
-        var expected = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdater\config.json";
+        var expected = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient\config.json";
         Assert.That(mockEnv.FileSystem.File.Exists(expected), Is.True);
 
         var loadedContent = mockEnv.FileSystem.File.ReadAllText(expected);
@@ -33,10 +33,10 @@ public class FileSystemConfigServiceTest
         var mockEnv = new MockEnv();
         var appDataFolder = new AppDataFolder(mockEnv);
         var wowLocator = new MockWowLocator();
-        var configPath = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdater\config.json";
+        var configPath = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient\config.json";
 
         // Pre-create the config file
-        mockEnv.FileSystem.Directory.CreateDirectory(@"C:\Users\testuser\AppData\Roaming\CoffeeUpdater");
+        mockEnv.FileSystem.Directory.CreateDirectory(@"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient");
         var existingConfig = new Config { AddOnsPath = @"C:\existing\addons\path" };
         var json = JsonSerializer.Serialize(existingConfig);
         mockEnv.FileSystem.File.WriteAllText(configPath, json);
@@ -54,11 +54,11 @@ public class FileSystemConfigServiceTest
         var mockEnv = new MockEnv();
         var appDataFolder = new AppDataFolder(mockEnv);
         var wowLocator = new MockWowLocator();
-        var configPath = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdater\config.json";
+        var configPath = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient\config.json";
         var existingAddOnsPath = @"C:\custom\existing\addons\path";
 
         // Pre-create the config file with custom content
-        mockEnv.FileSystem.Directory.CreateDirectory(@"C:\Users\testuser\AppData\Roaming\CoffeeUpdater");
+        mockEnv.FileSystem.Directory.CreateDirectory(@"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient");
         var existingConfig = new Config { AddOnsPath = existingAddOnsPath };
         var json = JsonSerializer.Serialize(existingConfig);
         mockEnv.FileSystem.File.WriteAllText(configPath, json);
@@ -85,7 +85,7 @@ public class FileSystemConfigServiceTest
         var config = await service.GetConfigAsync();
 
         Assert.That(config.AddOnsPath, Is.EqualTo(string.Empty));
-        var configPath = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdater\config.json";
+        var configPath = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient\config.json";
         Assert.That(mockEnv.FileSystem.File.Exists(configPath), Is.True);
     }
 
@@ -95,9 +95,9 @@ public class FileSystemConfigServiceTest
         var mockEnv = new MockEnv();
         var appDataFolder = new AppDataFolder(mockEnv);
         var wowLocator = new MockWowLocator();
-        var configPath = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdater\config.json";
+        var configPath = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient\config.json";
 
-        mockEnv.FileSystem.Directory.CreateDirectory(@"C:\Users\testuser\AppData\Roaming\CoffeeUpdater");
+        mockEnv.FileSystem.Directory.CreateDirectory(@"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient");
         var existingConfig = new Config { AddOnsPath = @"C:\existing\addons\path" };
         var json = JsonSerializer.Serialize(existingConfig);
         mockEnv.FileSystem.File.WriteAllText(configPath, json);
@@ -117,5 +117,34 @@ public class FileSystemConfigServiceTest
         var loadedConfig = JsonSerializer.Deserialize<Config>(loadedContent);
 
         Assert.That(loadedConfig?.AddOnsPath, Is.EqualTo(@"C:\new\addons\path"));
+    }
+
+    [Test]
+    public async Task RapidConfigChanges_DebounceCancelsEarlierSave_OnlyFinalValuePersistedAsync()
+    {
+        var mockEnv = new MockEnv();
+        var appDataFolder = new AppDataFolder(mockEnv);
+        var wowLocator = new MockWowLocator();
+        var configPath = @"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient\config.json";
+
+        mockEnv.FileSystem.Directory.CreateDirectory(@"C:\Users\testuser\AppData\Roaming\CoffeeUpdateClient");
+        var existingConfig = new Config { AddOnsPath = @"C:\original\path" };
+        mockEnv.FileSystem.File.WriteAllText(configPath, JsonSerializer.Serialize(existingConfig));
+
+        var service = new FileSystemConfigService(mockEnv, appDataFolder, wowLocator);
+        var config = await service.GetConfigAsync();
+
+        // Fire multiple rapid changes — earlier debounce timers should be cancelled
+        config.AddOnsPath = @"C:\first\path";
+        config.AddOnsPath = @"C:\second\path";
+        config.AddOnsPath = @"C:\final\path";
+
+        // Wait for the last debounce to flush
+        await Task.Delay(1000);
+
+        var loadedContent = mockEnv.FileSystem.File.ReadAllText(configPath);
+        var loadedConfig = JsonSerializer.Deserialize<Config>(loadedContent);
+
+        Assert.That(loadedConfig?.AddOnsPath, Is.EqualTo(@"C:\final\path"));
     }
 }

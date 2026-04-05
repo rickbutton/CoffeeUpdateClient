@@ -13,6 +13,7 @@ public class MockAddOnDownloader : IAddOnDownloader
     private readonly Dictionary<string, AddOnBundle?> _bundles = new();
     private bool _shouldReturnNullManifest = false;
     private bool _shouldReturnNullBundle = false;
+    private bool _shouldThrow = false;
 
     public void SetManifest(AddOnManifest? manifest)
     {
@@ -27,6 +28,11 @@ public class MockAddOnDownloader : IAddOnDownloader
     public void SetShouldReturnNullBundle(bool shouldReturnNull)
     {
         _shouldReturnNullBundle = shouldReturnNull;
+    }
+
+    public void SetShouldThrow(bool shouldThrow)
+    {
+        _shouldThrow = shouldThrow;
     }
 
     public void AddBundle(string addOnName, string version, string[]? files = null, string? rootFolderName = null)
@@ -55,6 +61,8 @@ public class MockAddOnDownloader : IAddOnDownloader
     public async Task<ManifestResult> GetLatestManifestAsync()
     {
         await Task.Delay(1); // Simulate async operation
+        if (_shouldThrow)
+            throw new InvalidOperationException("Simulated downloader failure");
         if (_shouldReturnNullManifest || _manifest == null)
             return ManifestResult.Failed();
         return ManifestResult.Updated(_manifest);

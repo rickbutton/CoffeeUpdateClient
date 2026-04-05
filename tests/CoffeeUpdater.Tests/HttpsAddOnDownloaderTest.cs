@@ -89,6 +89,67 @@ public class HttpsAddOnDownloaderTest
     }
 
     [Test]
+    public async Task GetLatestManifestAsync_SecondCallWithETag_ReturnsNotModifiedAsync()
+    {
+        var manifest = new AddOnManifest
+        {
+            AddOns = [new AddOnMetadata { Name = "TestAddOn", Version = "1.0.0" }]
+        };
+
+        var handler = new ETagMockHandler(JsonSerializer.Serialize(manifest));
+        var downloader = new HttpsAddOnDownloader(new HttpClient(handler));
+
+        // First call — should return Updated
+        var result1 = await downloader.GetLatestManifestAsync();
+        Assert.That(result1.Status, Is.EqualTo(ManifestResult.ResultStatus.Updated));
+        Assert.That(result1.Manifest, Is.Not.Null);
+
+        // Second call — should return NotModified (ETag matches)
+        var result2 = await downloader.GetLatestManifestAsync();
+        Assert.That(result2.Status, Is.EqualTo(ManifestResult.ResultStatus.NotModified));
+        Assert.That(result2.Manifest, Is.Not.Null);
+        Assert.That(result2.Manifest!.AddOns[0].Name, Is.EqualTo("TestAddOn"));
+    }
+
+    private class ETagMockHandler : HttpMessageHandler
+    {
+        private readonly string _json;
+        private const string ETagValue = "\"abc123\"";
+
+        public ETagMockHandler(string json) => _json = json;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.Headers.IfNoneMatch.Any(e => e.Tag == ETagValue))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotModified));
+            }
+
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(_json)
+            };
+            response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue(ETagValue);
+            return Task.FromResult(response);
+        }
+    }
+
+    [Test]
+    public async Task GetLatestManifestAsync_JsonNull_ReturnsFailedAsync()
+    {
+        var mockHttp = new MockHttpMessageHandler();
+        mockHttp.When($"{BaseUri}/manifest.json")
+                .Respond("application/json", "null");
+
+        var downloader = new HttpsAddOnDownloader(mockHttp.ToHttpClient());
+
+        var result = await downloader.GetLatestManifestAsync();
+
+        Assert.That(result.Status, Is.EqualTo(ManifestResult.ResultStatus.Failed));
+        Assert.That(result.Manifest, Is.Null);
+    }
+
+    [Test]
     public async Task GetLatestManifestAsync_EmptyAddOnList_ReturnsEmptyManifestAsync()
     {
         var manifest = new AddOnManifest { AddOns = [] };

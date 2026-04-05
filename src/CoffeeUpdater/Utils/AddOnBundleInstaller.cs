@@ -101,7 +101,7 @@ public class AddOnBundleInstaller
         }
     }
 
-    public void UninstallAddOn(string name)
+    public virtual void UninstallAddOn(string name)
     {
         var folders = _config.InstalledAddOnFolders.GetValueOrDefault(name, [name]);
         foreach (var folder in folders)

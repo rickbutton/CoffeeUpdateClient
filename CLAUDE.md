@@ -13,8 +13,11 @@ dotnet build
 # Run tests
 dotnet test
 
-# Run tests with coverage
-dotnet test --collect:"XPlat Code Coverage"
+# Run tests with coverage (requires: dotnet tool install -g dotnet-coverage)
+dotnet-coverage collect -s coverage.settings.xml -o build/TestResults/coverage.cobertura.xml -f cobertura "dotnet test"
+
+# Generate HTML coverage report (requires: dotnet tool install -g dotnet-reportgenerator-globaltool)
+reportgenerator -reports:build/TestResults/coverage.cobertura.xml -targetdir:build/CoverageReport -reporttypes:Html
 
 # Publish single-file exe (release)
 dotnet publish -c Release
