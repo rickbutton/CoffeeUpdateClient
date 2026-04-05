@@ -46,9 +46,11 @@ async function uploadFile(path, destPath, contentType) {
 }
 
 async function main() {
-    console.log("fetching latest release tag for CoffeeUpdateClient...");
-    const latestTag = child.execSync("gh release list -L 1 --json tagName -q \".[].tagName\"").toString().replace(/^\s+|\s+$/g, "");
-    console.log("latest release tag for CoffeeUpdateClient:", latestTag);
+    const latestTag = process.env.RELEASE_TAG;
+    if (!latestTag) {
+        throw new Error("RELEASE_TAG environment variable is required");
+    }
+    console.log("release tag:", latestTag);
 
     console.log("downloading latest releases...");
     child.execSync(`gh release download ${latestTag} -D release --clobber -p "*.zip"`, { stdio: "inherit" });
