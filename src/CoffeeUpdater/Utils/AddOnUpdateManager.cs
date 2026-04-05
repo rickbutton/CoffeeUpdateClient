@@ -40,10 +40,7 @@ public class AddOnUpdateManager
             }
 
             if (result.Status == ManifestResult.ResultStatus.NotModified)
-            {
-                Log.Debug("manifest not modified, skipping update");
-                return true;
-            }
+                Log.Debug("manifest not modified, checking local state");
 
             var installStates = await GetAddOnInstallStatesAsync(result.Manifest);
             return await ApplyUpdatesAsync(installStates);

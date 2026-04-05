@@ -503,10 +503,46 @@ public class AddOnUpdateManagerTest
         }
     }
 
+    [Test]
+    public async Task UpdateAddOns_NotModified_LocalFilesDeleted_ReinstallsAddon()
+    {
+        var manifest = new AddOnManifest
+        {
+            AddOns = [new AddOnMetadata { Name = "BigWigs", Version = "1.0.0" }]
+        };
+        var downloader = new NotModifiedMockDownloader(manifest);
+        downloader.AddBundle("BigWigs", "1.0.0", ["BigWigs.toc", "Core.lua"]);
+        var updateManager = new AddOnUpdateManager(downloader, _bundleInstaller, _metadataLoader, _installLog, _config, _mockEnv);
+
+        // First call: manifest is Updated → installs the addon
+        var result1 = await updateManager.UpdateAddOns();
+        Assert.That(result1, Is.True);
+        var addOnPath = Path.Combine(AddOnsPath, "BigWigs");
+        Assert.That(_mockEnv.FileSystem.Directory.Exists(addOnPath), Is.True);
+
+        // Simulate user deleting the addon folder
+        _mockEnv.FileSystem.Directory.Delete(addOnPath, true);
+        Assert.That(_mockEnv.FileSystem.Directory.Exists(addOnPath), Is.False);
+
+        // Second call: manifest is NotModified → should still detect missing files and reinstall
+        var result2 = await updateManager.UpdateAddOns();
+        Assert.That(result2, Is.True);
+        Assert.That(_mockEnv.FileSystem.Directory.Exists(addOnPath), Is.True, "Addon should be reinstalled when local files are deleted even if manifest is unchanged");
+    }
+
     private class NotModifiedMockDownloader : IAddOnDownloader
     {
         private bool _firstCall = true;
-        private readonly AddOnManifest _manifest = new() { AddOns = [] };
+        private readonly AddOnManifest _manifest;
+        private readonly Dictionary<string, (string addOnName, string version, string[] files)> _bundleSpecs = new();
+
+        public NotModifiedMockDownloader(AddOnManifest? manifest = null)
+        {
+            _manifest = manifest ?? new AddOnManifest { AddOns = [] };
+        }
+
+        public void AddBundle(string addOnName, string version, string[] files) =>
+            _bundleSpecs[$"{addOnName}-{version}"] = (addOnName, version, files);
 
         public Task<ManifestResult> GetLatestManifestAsync()
         {
@@ -518,7 +554,17 @@ public class AddOnUpdateManagerTest
             return Task.FromResult(ManifestResult.NotModified(_manifest));
         }
 
-        public Task<AddOnBundle?> GetAddOnBundleAsync(AddOnMetadata metadata) =>
-            Task.FromResult<AddOnBundle?>(null);
+        public Task<AddOnBundle?> GetAddOnBundleAsync(AddOnMetadata metadata)
+        {
+            var key = $"{metadata.Name}-{metadata.Version}";
+            if (!_bundleSpecs.TryGetValue(key, out var spec))
+                return Task.FromResult<AddOnBundle?>(null);
+
+            // Create a fresh bundle each time so the stream is always readable
+            var fresh = new MockAddOnDownloader();
+            fresh.SetManifest(_manifest);
+            fresh.AddBundle(spec.addOnName, spec.version, spec.files);
+            return fresh.GetAddOnBundleAsync(metadata);
+        }
     }
 }
