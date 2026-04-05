@@ -11,6 +11,9 @@ public class InstallLogCollector
     public delegate void LogAddedHandler(string message);
     public event LogAddedHandler? LogAdded;
 
+    public delegate void UpdatesAppliedHandler(int count);
+    public event UpdatesAppliedHandler? UpdatesApplied;
+
     public void ClearLog()
     {
         LogCleared?.Invoke();
@@ -20,5 +23,10 @@ public class InstallLogCollector
     {
         Log.Information("InstallLog: {message}", message);
         LogAdded?.Invoke(message);
+    }
+
+    public void NotifyUpdatesApplied(int count)
+    {
+        UpdatesApplied?.Invoke(count);
     }
 }

@@ -5,64 +5,66 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Coffee Updater — Status"
-        Height="400"
-        Width="500"
+        Title="Coffee Updater"
+        Height="280"
+        Width="400"
         ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
         Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}">
     <Grid>
-        <StackPanel Orientation="Vertical">
-            <StackPanel.Resources>
-                <Style TargetType="Grid" x:Key="TitleStyle">
-                    <Setter Property="Margin" Value="0,0,0,20"/>
-                </Style>
-                <Style TargetType="StackPanel" x:Key="PathSelectInputStyle">
-                    <Setter Property="Margin" Value="0,0,0,30"/>
-                </Style>
-                <Style TargetType="TextBlock" x:Key="ErrorMessageTextBlockStyle">
-                    <Setter Property="Margin" Value="30,0,30,0"/>
-                </Style>
-                <Style TargetType="TextBox" x:Key="LogTextBoxStyle">
-                    <Setter Property="Margin" Value="30,0,30,20"/>
-                </Style>
-            </StackPanel.Resources>
-            <Grid
-                HorizontalAlignment="Stretch"
-                VerticalAlignment="Top"
-                Style="{StaticResource TitleStyle}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition/>
-                </Grid.RowDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-                <TextBlock Text="Coffee Updater"
-                           FontSize="24"
-                           FontWeight="Bold"
-                           Grid.Column="1"
-                           Grid.Row="0"
-                           HorizontalAlignment="Stretch"
-                           VerticalAlignment="Bottom"/>
-                <TextBlock Name="VersionTextBlock"
-                           Text="{Binding Path=ClientVersion}"
-                           FontSize="12"
-                           Grid.Column="2"
-                           Grid.Row="0"
-                           VerticalAlignment="Bottom"/>
-            </Grid>
+        <!-- Header -->
+        <Grid Grid.Row="0" Margin="20,16,20,0">
+            <TextBlock Text="Coffee Updater"
+                       FontSize="20"
+                       FontWeight="Bold"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding Path=ClientVersion}"
+                       FontSize="11"
+                       Foreground="Gray"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center"/>
+        </Grid>
 
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Style="{StaticResource PathSelectInputStyle}">
-                <Label Content="WoW AddOns Folder" VerticalAlignment="Center" Padding="0" />
-                <StackPanel Orientation="Horizontal">
-                    <TextBox Width="300" IsReadOnly="True" Text="{Binding Path=SelectedAddOnsPath, Mode=OneWay}" />
-                    <Button Content="Browse" Width="75" Click="Browse_Clicked" />
-                </StackPanel>
+        <!-- Big status area -->
+        <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Ellipse Width="12" Height="12"
+                         Fill="{Binding Path=StatusDotColor}"
+                         VerticalAlignment="Center"
+                         Margin="0,0,8,0"/>
+                <TextBlock Text="{Binding Path=StatusText}"
+                           FontSize="16"
+                           VerticalAlignment="Center"/>
             </StackPanel>
-            <TextBox Name="LogTextBox" Style="{StaticResource LogTextBoxStyle}" Text="{Binding Path=AllInstallLogs, Mode=OneWay}" Height="170" IsReadOnly="True" />
-            <TextBlock Text="{Binding Path=StatusText}" HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding Path=StatusDetail}"
+                       FontSize="12"
+                       Foreground="Gray"
+                       HorizontalAlignment="Center"
+                       Margin="0,6,0,0"
+                       Visibility="{Binding Path=StatusDetailVisibility}"/>
+        </StackPanel>
+
+        <!-- Separator -->
+        <Separator Grid.Row="2" Margin="20,0,20,0"/>
+
+        <!-- Path picker -->
+        <StackPanel Grid.Row="3" Margin="20,10,20,16">
+            <Label Content="WoW AddOns Folder" Padding="0,0,0,4" Foreground="Gray" FontSize="11"/>
+            <DockPanel>
+                <Button Content="Browse" DockPanel.Dock="Right" Width="60" Margin="8,0,0,0" Click="Browse_Clicked" FontSize="11"/>
+                <TextBlock Text="{Binding Path=SelectedAddOnsPath, Mode=OneWay}"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
         </StackPanel>
     </Grid>
 </Window>

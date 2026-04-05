@@ -12,6 +12,7 @@ public class AddOnSyncService : BackgroundService
     private readonly AddOnUpdateManager _updateManager;
     private readonly Config _config;
 
+    public event Action? SyncStarted;
     public event Action? SyncCompleted;
     public event Action<string>? SyncError;
 
@@ -77,6 +78,7 @@ public class AddOnSyncService : BackgroundService
             if (_paused) return;
 
             IsSyncing = true;
+            SyncStarted?.Invoke();
             var success = await _updateManager.UpdateAddOns();
             LastSyncTime = DateTime.Now;
 

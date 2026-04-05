@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Reflection;
 using System.Windows;
-using System.Windows.Input;
+using System.Windows.Media;
 using CoffeeUpdater.Models;
 using CoffeeUpdater.Services;
 using CoffeeUpdater.Utils;
@@ -13,56 +13,61 @@ namespace CoffeeUpdater;
 public partial class MainWindow : INotifyPropertyChanged
 {
 
+    public enum SyncStatus
+    {
+        UpToDate,
+        Syncing,
+        Updated,
+        Error,
+        PathNotSet,
+        PathInvalid,
+    }
+
     private class State : INotifyPropertyChanged
     {
-        public enum AddOnsPathStateEnum
-        {
-            Invalid,
-            Valid,
-            NotSet,
-        };
-
         private readonly Config _config;
 
         // real state
         public string ClientVersion { get; private set; }
         public string? AddOnsPath { get; private set; }
         public string? NormalizedAddOnsPath { get; private set; }
-        public bool UserHasSelectedPath { get; private set; }
-        public bool IsWorkInProgress { get; set; }
-
-        public List<string> InstallLogs { get; private set; } = [];
+        public SyncStatus Status { get; set; } = SyncStatus.Syncing;
+        public int UpdatedCount { get; set; }
+        public string? ErrorMessage { get; set; }
 
         // derived state
-        public AddOnsPathStateEnum PathState
-        {
-            get
-            {
-                if (string.IsNullOrEmpty(AddOnsPath))
-                {
-                    return AddOnsPathStateEnum.NotSet;
-                }
-                else if (string.IsNullOrEmpty(NormalizedAddOnsPath))
-                {
-                    return AddOnsPathStateEnum.Invalid;
-                }
-                else
-                {
-                    return AddOnsPathStateEnum.Valid;
-                }
-            }
-        }
         public string? SelectedAddOnsPath => string.IsNullOrEmpty(AddOnsPath) ? NormalizedAddOnsPath : AddOnsPath;
-        public string AllInstallLogs => string.Join("\n", InstallLogs);
-        public string StatusText
+
+        public string StatusText => Status switch
         {
-            get
-            {
-                if (IsWorkInProgress) return "Syncing...";
-                if (PathState != AddOnsPathStateEnum.Valid) return "Invalid Path";
-                return "Running";
-            }
-        }
+            SyncStatus.UpToDate => "All addons up to date",
+            SyncStatus.Syncing => "Checking for updates\u2026",
+            SyncStatus.Updated => $"Updated {UpdatedCount} addon{(UpdatedCount != 1 ? "s" : "")}",
+            SyncStatus.Error => "Sync failed",
+            SyncStatus.PathNotSet => "Set your WoW AddOns folder to get started",
+            SyncStatus.PathInvalid => "Invalid AddOns path",
+            _ => "",
+        };
+
+        public Brush StatusDotColor => Status switch
+        {
+            SyncStatus.UpToDate => Brushes.Green,
+            SyncStatus.Syncing => Brushes.DodgerBlue,
+            SyncStatus.Updated => Brushes.Green,
+            SyncStatus.Error => Brushes.Red,
+            SyncStatus.PathNotSet => Brushes.Orange,
+            SyncStatus.PathInvalid => Brushes.Red,
+            _ => Brushes.Gray,
+        };
+
+        public string? StatusDetail => Status switch
+        {
+            SyncStatus.Error => ErrorMessage,
+            _ => null,
+        };
+
+        public Visibility StatusDetailVisibility =>
+            string.IsNullOrEmpty(StatusDetail) ? Visibility.Collapsed : Visibility.Visible;
 
         public State(Config config)
         {
@@ -70,30 +75,29 @@ public partial class MainWindow : INotifyPropertyChanged
             ClientVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "vUNK";
             AddOnsPath = config.AddOnsPath;
             NormalizedAddOnsPath = AddOnPathResolver.NormalizeAddOnsDirectory(config.AddOnsPath);
-            UserHasSelectedPath = false;
+
+            if (string.IsNullOrEmpty(AddOnsPath))
+                Status = SyncStatus.PathNotSet;
+            else if (string.IsNullOrEmpty(NormalizedAddOnsPath))
+                Status = SyncStatus.PathInvalid;
+            else
+                Status = SyncStatus.Syncing;
         }
 
         public void SelectPath(string path)
         {
             AddOnsPath = path;
             NormalizedAddOnsPath = AddOnPathResolver.NormalizeAddOnsDirectory(path);
-            UserHasSelectedPath = true;
             Log.Information("User selected path: {Path}", path);
             _config.AddOnsPath = NormalizedAddOnsPath ?? string.Empty;
+
+            if (string.IsNullOrEmpty(NormalizedAddOnsPath))
+                Status = SyncStatus.PathInvalid;
+            else
+                Status = SyncStatus.Syncing;
         }
 
-        public void ClearLog()
-        {
-            InstallLogs = [];
-        }
-
-        public void AddLog(string message)
-        {
-            InstallLogs.Add(message);
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(InstallLogs)));
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AllInstallLogs)));
-        }
-
+        public bool HasValidPath => !string.IsNullOrEmpty(NormalizedAddOnsPath);
 
 #pragma warning disable 67
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -102,27 +106,27 @@ public partial class MainWindow : INotifyPropertyChanged
 
     private State CurrentState { get; set; }
 
-    private readonly AddOnUpdateManager _updateManager;
-    private readonly InstallLogCollector _installLog;
+    private readonly AddOnSyncService _syncService;
+    private System.Windows.Threading.DispatcherTimer? _revertTimer;
 
-    public MainWindow(AddOnUpdateManager updateManager, InstallLogCollector installLog, Config config)
+    public MainWindow(AddOnSyncService syncService, InstallLogCollector installLog, Config config)
     {
         CurrentState = new State(config);
-        _updateManager = updateManager;
-        _installLog = installLog;
+        _syncService = syncService;
 
         this.DataContext = CurrentState;
         InitializeComponent();
 
-        _installLog.LogCleared += OnLogCleared;
-        _installLog.LogAdded += OnLogAdded;
+        _syncService.SyncStarted += OnSyncStarted;
+        _syncService.SyncCompleted += OnSyncCompleted;
+        _syncService.SyncError += OnSyncError;
+        installLog.UpdatesApplied += OnUpdatesApplied;
 
-        _ = LoadInitialStateAsync();
     }
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        if (System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control))
         {
             // Ctrl+click the X button to fully exit the app
             Application.Current.Shutdown();
@@ -134,21 +138,60 @@ public partial class MainWindow : INotifyPropertyChanged
         Hide();
     }
 
-    private void OnLogCleared()
-    {
-        Dispatcher.BeginInvoke(() => CurrentState.ClearLog());
-    }
-
-    private void OnLogAdded(string message)
+    private void OnSyncStarted()
     {
         Dispatcher.BeginInvoke(() =>
         {
-            CurrentState.AddLog(message);
-            LogTextBox.ScrollToEnd();
+            if (!CurrentState.HasValidPath) return;
+            CurrentState.Status = SyncStatus.Syncing;
         });
     }
 
-    private async void Browse_Clicked(object sender, RoutedEventArgs e)
+    private void OnSyncCompleted()
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (!CurrentState.HasValidPath) return;
+            // Only revert to UpToDate if we're still in Syncing state
+            // (Updated state will revert on its own timer)
+            if (CurrentState.Status == SyncStatus.Syncing)
+                CurrentState.Status = SyncStatus.UpToDate;
+        });
+    }
+
+    private void OnSyncError(string message)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            CurrentState.ErrorMessage = message;
+            CurrentState.Status = SyncStatus.Error;
+        });
+    }
+
+    private void OnUpdatesApplied(int count)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            CurrentState.UpdatedCount = count;
+            CurrentState.Status = SyncStatus.Updated;
+
+            // Revert to "up to date" after a few seconds
+            _revertTimer?.Stop();
+            _revertTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(5)
+            };
+            _revertTimer.Tick += (_, _) =>
+            {
+                _revertTimer.Stop();
+                if (CurrentState.Status == SyncStatus.Updated)
+                    CurrentState.Status = SyncStatus.UpToDate;
+            };
+            _revertTimer.Start();
+        });
+    }
+
+    private void Browse_Clicked(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFolderDialog();
         if (!string.IsNullOrEmpty(CurrentState.NormalizedAddOnsPath))
@@ -160,80 +203,9 @@ public partial class MainWindow : INotifyPropertyChanged
         {
             CurrentState.SelectPath(dialog.FolderName);
         }
-
-        await LoadInitialStateAsync();
     }
 
-    private bool DisplayConfigState()
-    {
-        if (CurrentState.PathState == State.AddOnsPathStateEnum.Invalid)
-        {
-            _installLog.AddLog("AddOns path is invalid. Set a proper path to the WoW AddOns folder");
-            return false;
-        }
-        else if (CurrentState.PathState == State.AddOnsPathStateEnum.NotSet)
-        {
-            _installLog.AddLog("AddOns path is not set. Set a proper path to the WoW AddOns folder");
-            return false;
-        }
-        return true;
-    }
-
-    private async Task RunWithProgress(string errorContext, Func<Task> action)
-    {
-        _installLog.ClearLog();
-        CurrentState.IsWorkInProgress = true;
-        try
-        {
-            if (!DisplayConfigState()) return;
-            await action();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Exception {Context}", errorContext);
-            _installLog.AddLog($"An exception occurred {errorContext}: {ex.Message}");
-        }
-        finally
-        {
-            CurrentState.IsWorkInProgress = false;
-        }
-    }
-
-    private Task LoadInitialStateAsync() => RunWithProgress("while loading install state", async () =>
-    {
-        var installStates = await _updateManager.GetAddOnInstallStatesForLatestManifestAsync();
-        if (installStates == null)
-        {
-            _installLog.AddLog("Unable to determine current state of addons. See detailed log for more information.");
-            return;
-        }
-
-        foreach (var state in installStates)
-        {
-            if (state.ShouldUninstall)
-            {
-                if (state.IsInstalled)
-                {
-                    _installLog.AddLog($"- {state.Name} will be removed, local={state.LocalAddOn!.Version}");
-                }
-            }
-            else if (state.HasLocalError)
-            {
-                _installLog.AddLog($"- {state.Name} has a local TOC error (version unreadable), remote={state.RemoteAddOn.Version}");
-            }
-            else if (state.LocalAddOn == null)
-            {
-                _installLog.AddLog($"- {state.Name} needs to be installed, remote={state.RemoteAddOn.Version}");
-            }
-            else if (!state.IsUpdated)
-            {
-                _installLog.AddLog($"- {state.Name} needs to be updated, local={state.LocalAddOn.Version} remote={state.RemoteAddOn.Version}");
-            }
-            else
-            {
-                _installLog.AddLog($"- {state.Name} is up to date, local={state.LocalAddOn.Version}");
-            }
-        }
-    });
-
+#pragma warning disable 67
+    public event PropertyChangedEventHandler? PropertyChanged;
+#pragma warning restore 67
 }

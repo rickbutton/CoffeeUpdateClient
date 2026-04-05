@@ -90,6 +90,7 @@ public class AddOnUpdateManager
     private async Task<bool> ApplyUpdatesAsync(IEnumerable<AddOnInstallState> installStates)
     {
         bool success = true;
+        int updatedCount = 0;
         foreach (var state in installStates)
         {
             if (state.ShouldUninstall)
@@ -154,12 +155,12 @@ public class AddOnUpdateManager
                 }
 
                 _installLog.AddLog($"AddOn {state.RemoteAddOn.Name}-{state.RemoteAddOn.Version} {verb} successful");
-            }
-            else
-            {
-                _installLog.AddLog($"AddOn {state.RemoteAddOn.Name} skipped, already up to date.");
+                updatedCount++;
             }
         }
+
+        if (updatedCount > 0)
+            _installLog.NotifyUpdatesApplied(updatedCount);
 
         return success;
     }
