@@ -83,6 +83,7 @@ public partial class App : Application
             services.AddSingleton<AddOnUpdateManager>();
             services.AddSingleton<InstallLogCollector>();
             services.AddSingleton<AddOnSyncService>();
+            services.AddSingleton<IAppUpdateManager, VelopackUpdateManager>();
             services.AddSingleton<AppUpdateService>();
             services.AddSingleton<MainWindow>();
 

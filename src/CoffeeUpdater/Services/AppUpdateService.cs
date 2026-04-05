@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Hosting;
 using Serilog;
-using Velopack;
 
 namespace CoffeeUpdater.Services;
 
@@ -8,13 +7,12 @@ public class AppUpdateService : BackgroundService
 {
     private static readonly TimeSpan CheckInterval = TimeSpan.FromMinutes(1);
     private readonly AddOnSyncService _syncService;
-    private readonly UpdateManager _updateManager;
+    private readonly IAppUpdateManager _updateManager;
 
-    public AppUpdateService(AddOnSyncService syncService)
+    public AppUpdateService(AddOnSyncService syncService, IAppUpdateManager updateManager)
     {
         _syncService = syncService;
-        var source = new Velopack.Sources.SimpleWebSource("https://coffee-auras.nyc3.digitaloceanspaces.com/releases");
-        _updateManager = new UpdateManager(source);
+        _updateManager = updateManager;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -28,7 +26,7 @@ public class AppUpdateService : BackgroundService
         }
     }
 
-    private async Task CheckAndApplyUpdateAsync(CancellationToken ct)
+    internal async Task CheckAndApplyUpdateAsync(CancellationToken ct)
     {
         bool paused = false;
         try

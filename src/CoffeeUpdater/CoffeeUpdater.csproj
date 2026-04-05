@@ -15,6 +15,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="CoffeeUpdater.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="..\..\images\icon-black-256.png" Link="Resources\icon-black-256.png" />
     <Resource Include="..\..\images\icon-256.ico" Link="Resources\icon-256.ico" />
   </ItemGroup>
