@@ -42,9 +42,11 @@ function getContentType(fileName) {
 }
 
 async function main() {
-    console.log("fetching latest release tag for CoffeeUpdater...");
-    const latestTag = child.execSync("gh release list -L 1 --json tagName -q \".[].tagName\"").toString().replace(/^\s+|\s+$/g, "");
-    console.log("latest release tag for CoffeeUpdater:", latestTag);
+    const latestTag = process.env.RELEASE_TAG;
+    if (!latestTag) {
+        throw new Error("RELEASE_TAG environment variable is required");
+    }
+    console.log("release tag:", latestTag);
 
     console.log("downloading latest release assets...");
     child.execSync(`gh release download ${latestTag} -D release --clobber`, { stdio: "inherit" });
