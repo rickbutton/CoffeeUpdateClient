@@ -2,6 +2,8 @@ name: dotnet test
 
 on:
   push:
+    branches:
+      - '**'
   pull_request:
   workflow_dispatch:
 
@@ -24,8 +26,11 @@ jobs:
     - name: Build
       run: dotnet build --no-restore
       
-    - name: Test
-      run: dotnet test --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory build/coverage
+    - name: Install dotnet-coverage
+      run: dotnet tool install -g dotnet-coverage
+
+    - name: Test with coverage
+      run: dotnet-coverage collect -s coverage.settings.xml -o build/coverage/coverage.cobertura.xml -f cobertura "dotnet test --no-build --verbosity normal"
 
     - name: Upload coverage
       uses: actions/upload-artifact@v4
@@ -35,3 +40,16 @@ jobs:
       
     - name: Format check
       run: dotnet format --verify-no-changes --verbosity detailed
+
+    - name: Install RelaxVersioner CLI
+      run: dotnet tool install -g rv-cli
+
+    - name: Build installer
+      run: .\scripts\build-installer.ps1 -SkipDefenderExclusions
+      shell: pwsh
+
+    - name: Upload installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: installer
+        path: Releases/

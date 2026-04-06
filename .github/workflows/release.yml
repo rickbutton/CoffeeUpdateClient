@@ -5,58 +5,78 @@ on:
     tags:
       - "*.*.*"
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: windows-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      
+      with:
+        fetch-depth: 0
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 8.0.x
-        
-    - name: Restore dependencies
-      run: dotnet restore
-      
-    - name: Build
-      run: dotnet build --no-restore -c Release
 
-    - name: Publish
-      run: dotnet publish
+    - name: Install Velopack CLI
+      run: dotnet tool install -g vpk
+      shell: pwsh
 
-    - name: Create archive
-      run: Compress-Archive build/publish/CoffeeUpdateClient/release/CoffeeUpdateClient.exe CoffeeUpdateClient-${{ github.ref_name }}.zip
+    - name: Download previous release from S3
+      continue-on-error: true
+      run: |
+        vpk download s3 `
+          --bucket ${{ secrets.BUCKET_NAME }} `
+          --endpoint https://${{ secrets.BUCKET_ENDPOINT }} `
+          --keyId ${{ secrets.BUCKET_ACCESS_KEY_ID }} `
+          --secret ${{ secrets.BUCKET_SECRET_ACCESS_KEY }} `
+          --prefix releases `
+          --disablePathStyle
+      shell: pwsh
+
+    - name: Build installer
+      run: .\scripts\build-installer.ps1 -Version ${{ github.ref_name }} -SigningMetadata scripts\trusted-signing.json
+      shell: pwsh
+      env:
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+    - name: Upload release to S3
+      run: |
+        vpk upload s3 `
+          --bucket ${{ secrets.BUCKET_NAME }} `
+          --endpoint https://${{ secrets.BUCKET_ENDPOINT }} `
+          --keyId ${{ secrets.BUCKET_ACCESS_KEY_ID }} `
+          --secret ${{ secrets.BUCKET_SECRET_ACCESS_KEY }} `
+          --prefix releases `
+          --disablePathStyle
+      shell: pwsh
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '22'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Set public-read ACL on release artifacts
+      run: node scripts/set-s3-public-acl.js
+      env:
+        BUCKET_ENDPOINT: ${{ secrets.BUCKET_ENDPOINT }}
+        BUCKET_REGION: ${{ secrets.BUCKET_REGION }}
+        BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
+        BUCKET_ACCESS_KEY_ID: ${{ secrets.BUCKET_ACCESS_KEY_ID }}
+        BUCKET_SECRET_ACCESS_KEY: ${{ secrets.BUCKET_SECRET_ACCESS_KEY }}
+        S3_PREFIX: releases/
 
     - name: Release
       uses: softprops/action-gh-release@v2
       with:
           files: |
-            CoffeeUpdateClient-${{ github.ref_name }}.zip
-
-  upload-to-s3:
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '22'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Upload release to S3
-        run: node scripts/upload-release-to-s3.js
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-          GH_TOKEN: ${{ github.token }}
-          BUCKET_ENDPOINT: ${{ secrets.BUCKET_ENDPOINT }}
-          BUCKET_REGION: ${{ secrets.BUCKET_REGION }}
-          BUCKET_NAME: ${{ secrets.BUCKET_NAME }}
-          BUCKET_ACCESS_KEY_ID: ${{ secrets.BUCKET_ACCESS_KEY_ID }}
-          BUCKET_SECRET_ACCESS_KEY: ${{ secrets.BUCKET_SECRET_ACCESS_KEY }}
+            Releases/*-Setup.exe
