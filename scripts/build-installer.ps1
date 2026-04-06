@@ -1,16 +1,28 @@
 # Build a local Velopack installer for CoffeeUpdater.
 # Usage:
-#   .\scripts\build-installer.ps1 [version]
+#   .\scripts\build-installer.ps1 [-Version <ver>] [-SigningMetadata <path>] [-SkipDefenderExclusions]
 #
 # If version is omitted, inferred from RelaxVersioner (rv show).
 # Output goes to .\Releases\
 
 param(
     [string]$Version,
+    [string]$SigningMetadata,
     [switch]$SkipDefenderExclusions
 )
 
 $ErrorActionPreference = "Stop"
+
+# Load .env file if present (for local Azure Trusted Signing credentials)
+$EnvFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".env"
+if (Test-Path $EnvFile) {
+    Write-Host "==> Loading .env file"
+    Get-Content $EnvFile | ForEach-Object {
+        if ($_ -match '^\s*([^#][^=]+?)\s*=\s*(.+?)\s*$') {
+            [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], "Process")
+        }
+    }
+}
 
 if (-not $Version) {
     if (Get-Command rv -ErrorAction SilentlyContinue) {
@@ -61,14 +73,24 @@ if (-not $SkipDefenderExclusions) {
     Start-Process powershell -Verb RunAs -Wait -ArgumentList "-EncodedCommand $encoded"
 }
 
+$vpkArgs = @(
+    "pack",
+    "--packId", "CoffeeUpdater",
+    "--packVersion", $Version,
+    "--packDir", $PackDir,
+    "--mainExe", "CoffeeUpdater.exe",
+    "--noPortable",
+    "--icon", $IconPath
+)
+
+if ($SigningMetadata) {
+    Write-Host "==> Code signing enabled (Azure Trusted Signing)"
+    $vpkArgs += "--azureTrustedSignFile"
+    $vpkArgs += $SigningMetadata
+}
+
 Write-Host "==> Packing with Velopack..."
-vpk pack `
-    --packId CoffeeUpdater `
-    --packVersion $Version `
-    --packDir $PackDir `
-    --mainExe CoffeeUpdater.exe `
-    --noPortable `
-    --icon $IconPath
+vpk @vpkArgs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host ""

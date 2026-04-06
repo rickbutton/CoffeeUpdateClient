@@ -5,6 +5,9 @@ on:
     tags:
       - "*.*.*"
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: windows-latest
@@ -36,8 +39,12 @@ jobs:
       shell: pwsh
 
     - name: Build installer
-      run: .\scripts\build-installer.ps1 -Version ${{ github.ref_name }}
+      run: .\scripts\build-installer.ps1 -Version ${{ github.ref_name }} -SigningMetadata scripts\trusted-signing.json
       shell: pwsh
+      env:
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
 
     - name: Upload release to S3
       run: |
