@@ -1,117 +1,89 @@
-using Path = System.IO.Path;
+using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
 using System.Windows;
-using CoffeeUpdateClient.Services;
-using CoffeeUpdateClient.Utils;
-using Microsoft.Extensions.DependencyInjection;
 using Serilog;
-using AutoUpdaterDotNET;
-using System.Diagnostics;
+using Path = System.IO.Path;
 
 namespace CoffeeUpdateClient;
 
-/// <summary>
-/// Interaction logic for App.xaml
-/// </summary>
 public partial class App : Application
 {
+    private const string SetupUrl =
+        "https://coffee-auras.nyc3.digitaloceanspaces.com/releases/CoffeeUpdater-win-Setup.exe";
+
+    private static readonly string V2ExePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "CoffeeUpdater", "current", "CoffeeUpdater.exe");
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         SetupUnhandledExceptionHandling();
-        _ = OnStartupAsync(e);
+        _ = OnStartupAsync();
     }
 
-    protected async Task OnStartupAsync(StartupEventArgs e)
+    private async Task OnStartupAsync()
     {
+        var logDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "CoffeeUpdateClient");
+        Directory.CreateDirectory(logDir);
+
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.Console()
+            .WriteTo.File(Path.Combine(logDir, "bridge.log"), rollingInterval: RollingInterval.Day)
+            .CreateLogger();
+
         try
         {
-            // Bootstrap: create the objects needed to load config before DI is available.
-            var env = new WindowsEnv();
-            var appDataFolder = new AppDataFolder(env);
-            appDataFolder.EnsurePathExists();
-
-            var logPath = Path.Combine(appDataFolder.GetPath(), "client.log");
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .WriteTo.Console()
-                .WriteTo.File(logPath, rollingInterval: RollingInterval.Day)
-                .CreateLogger();
-
-            Log.Information("starting CoffeeUpdateClient");
-
-            var wowLocator = new RegistryWoWLocator(new WindowsRegistryReader());
-            var configService = new FileSystemConfigService(env, appDataFolder, wowLocator);
-            var config = await configService.GetConfigAsync();
-            Log.Debug("loaded config: {@Config}", config);
-
-            // Build DI container with all bootstrapped instances registered directly.
-            var services = new ServiceCollection();
-            services.AddSingleton<IEnv>(env);
-            services.AddSingleton<IWoWLocator>(wowLocator);
-            services.AddSingleton(appDataFolder);
-            services.AddSingleton<IConfigService>(configService);
-            services.AddSingleton(config);
-            services.AddSingleton(new HttpClient());
-
-            var localManifestDir = GetLocalManifestDir(e.Args);
-            if (localManifestDir != null)
+            if (File.Exists(V2ExePath))
             {
-                Log.Information("Using local manifest from {Dir}", localManifestDir);
-                services.AddSingleton<IAddOnDownloader>(new LocalFileAddOnDownloader(env.FileSystem, localManifestDir));
+                Log.Information("v2 found at {Path}, launching", V2ExePath);
+                Process.Start(new ProcessStartInfo(V2ExePath) { UseShellExecute = true });
+                Shutdown(0);
+                return;
             }
-            else
-            {
-                services.AddSingleton<IAddOnDownloader, HttpsAddOnDownloader>();
-            }
-            services.AddSingleton<LocalAddOnMetadataLoader>();
-            services.AddSingleton<AddOnBundleInstaller>();
-            services.AddSingleton<AddOnUpdateManager>();
-            services.AddSingleton<InstallLogCollector>();
-            services.AddSingleton<MainWindow>();
 
-            var provider = services.BuildServiceProvider();
+            Log.Information("v2 not found, downloading setup from {Url}", SetupUrl);
+            var tempPath = Path.Combine(Path.GetTempPath(), "CoffeeUpdater-win-Setup.exe");
 
-            var window = provider.GetRequiredService<MainWindow>();
-            window.Show();
+            using var httpClient = new HttpClient();
+            using var response = await httpClient.GetAsync(SetupUrl);
+            response.EnsureSuccessStatusCode();
 
-            AutoUpdater.Synchronous = true;
-            AutoUpdater.ShowSkipButton = false;
-            AutoUpdater.ShowRemindLaterButton = false;
-            AutoUpdater.TopMost = true;
-            AutoUpdater.RunUpdateAsAdmin = false;
-#if DEBUG
-            Log.Information("skipping updater in DEBUG");
-#else
-            var clientManifest = "https://coffee-auras.nyc3.digitaloceanspaces.com/client.xml";
-            Log.Information("checking for updates via manifest at {manifest}", clientManifest);
-            AutoUpdater.SetOwner(window);
-            AutoUpdater.Start(clientManifest);
-#endif
+            await using var fs = new FileStream(tempPath, FileMode.Create);
+            await response.Content.CopyToAsync(fs);
+            fs.Close();
+
+            Log.Information("Setup downloaded to {Path}, launching", tempPath);
+            Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true });
+            Shutdown(0);
         }
         catch (Exception ex)
         {
-            var message = $"A fatal error occurred during startup:\n\n{ex.Message}";
-            Log.Fatal(ex, "Fatal startup error");
-            MessageBox.Show(message, "Coffee AddOn Updater", MessageBoxButton.OK, MessageBoxImage.Error);
+            Log.Error(ex, "Bridge update failed");
+            MessageBox.Show(
+                "Could not automatically install CoffeeUpdater v2.\n\n" +
+                "Please download the latest version manually from:\n" +
+                SetupUrl,
+                "Coffee Updater",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
             Shutdown(1);
         }
     }
 
     private void SetupUnhandledExceptionHandling()
     {
-        // Catch exceptions from all threads in the AppDomain.
         AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
             ShowUnhandledException(args.ExceptionObject as Exception, "AppDomain.CurrentDomain.UnhandledException");
 
-        // Catch exceptions from each AppDomain that uses a task scheduler for async operations.
         TaskScheduler.UnobservedTaskException += (sender, args) =>
             ShowUnhandledException(args.Exception, "TaskScheduler.UnobservedTaskException");
 
-        // Catch exceptions from a single specific UI dispatcher thread.
         Dispatcher.UnhandledException += (sender, args) =>
         {
-            // If we are debugging, let Visual Studio handle the exception and take us to the code that threw it.
             if (!Debugger.IsAttached)
             {
                 args.Handled = true;
@@ -120,17 +92,7 @@ public partial class App : Application
         };
     }
 
-    static string? GetLocalManifestDir(string[] args)
-    {
-        for (int i = 0; i < args.Length - 1; i++)
-        {
-            if (args[i] == "--local-manifest")
-                return args[i + 1];
-        }
-        return null;
-    }
-
-    static void ShowUnhandledException(Exception? e, string unhandledExceptionType)
+    private static void ShowUnhandledException(Exception? e, string unhandledExceptionType)
     {
         Log.Error("Unhandled exception ({type}): {e}", unhandledExceptionType, e);
     }
