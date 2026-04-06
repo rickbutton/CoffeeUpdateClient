@@ -4,8 +4,13 @@ using Velopack;
 
 namespace CoffeeUpdater;
 
+public enum StartupReason { Normal, FirstRun, Restarted }
+
 public static class Program
 {
+    public static StartupReason StartupReason { get; private set; } = StartupReason.Normal;
+    public static string? StartupVersion { get; private set; }
+
     [STAThread]
     public static void Main(string[] args)
     {
@@ -15,6 +20,16 @@ public static class Program
         VelopackApp.Build()
             .OnAfterInstallFastCallback(_ => hooks.OnInstall())
             .OnBeforeUninstallFastCallback(_ => hooks.OnUninstall())
+            .OnFirstRun(v =>
+            {
+                StartupReason = StartupReason.FirstRun;
+                StartupVersion = v.ToFullString();
+            })
+            .OnRestarted(v =>
+            {
+                StartupReason = StartupReason.Restarted;
+                StartupVersion = v.ToFullString();
+            })
             .Run();
 
         var app = new App();

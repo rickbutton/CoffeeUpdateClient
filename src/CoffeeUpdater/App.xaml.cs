@@ -96,6 +96,9 @@ public partial class App : Application
             // Update status text whenever the context menu opens
             _trayIcon.ContextMenu.Opened += (_, _) => UpdateStatusMenuItem();
 
+            // Show startup balloon notification
+            ShowStartupBalloon();
+
             // Listen for IPC "show" commands from second instances
             _singleInstanceGuard!.ShowRequested += () =>
                 Dispatcher.Invoke(ShowSettingsWindow);
@@ -127,6 +130,22 @@ public partial class App : Application
             MessageBox.Show(message, "Coffee Updater", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
         }
+    }
+
+    private void ShowStartupBalloon()
+    {
+        if (_trayIcon == null) return;
+
+        var message = Program.StartupReason switch
+        {
+            StartupReason.FirstRun => "Installed and running in the background",
+            StartupReason.Restarted => $"Updated to v{Program.StartupVersion}",
+            _ => null,
+        };
+
+        if (message == null) return;
+
+        _trayIcon.ShowBalloonTip("Coffee Updater", message, BalloonIcon.Info);
     }
 
     private void ShowSettingsWindow()
