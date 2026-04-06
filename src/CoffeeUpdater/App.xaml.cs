@@ -116,10 +116,9 @@ public partial class App : Application
             _host = hostBuilder.Build();
             await _host.StartAsync();
 
-            // If AddOns path is not configured, show the window so the user can set it
-            if (string.IsNullOrEmpty(config.AddOnsPath))
+            // Show the window on first run or if AddOns path is not configured
+            if (Program.StartupReason == StartupReason.FirstRun || string.IsNullOrEmpty(config.AddOnsPath))
             {
-                Log.Information("AddOns path not configured, showing settings window for initial setup");
                 ShowSettingsWindow();
             }
         }
