@@ -299,6 +299,113 @@ public class AddOnBundleInstallerTest
     }
 
     [Test]
+    public void InstallAddOn_IgnoreMePresent_SkipsFolderAndPreservesUserFiles()
+    {
+        var addOnName = "MyAddOn";
+        var targetDir = _env.FileSystem.Path.Combine(_addOnsPath, addOnName);
+        _env.FileSystem.Directory.CreateDirectory(targetDir);
+        _env.FileSystem.File.WriteAllText(_env.FileSystem.Path.Combine(targetDir, ".ignoreme"), "");
+        _env.FileSystem.File.WriteAllText(_env.FileSystem.Path.Combine(targetDir, "dev.lua"), "local dev content");
+
+        var bundle = CreateBundle(addOnName, ["file1.lua"]);
+        var result = _installer.InstallAddOn(bundle);
+
+        Assert.That(result, Is.EqualTo(new[] { addOnName }));
+        Assert.That(_env.FileSystem.File.ReadAllText(_env.FileSystem.Path.Combine(targetDir, "dev.lua")), Is.EqualTo("local dev content"));
+        Assert.That(_env.FileSystem.File.Exists(_env.FileSystem.Path.Combine(targetDir, "file1.lua")), Is.False);
+        Assert.That(_env.FileSystem.File.Exists(_env.FileSystem.Path.Combine(targetDir, ".ignoreme")), Is.True);
+    }
+
+    [Test]
+    public void InstallAddOn_MultiFolderBundle_IgnoreMeInOneFolder_SkipsOnlyThatFolder()
+    {
+        foreach (var folder in new[] { "BigWigs", "BigWigs_Options", "BigWigs_Plugins" })
+        {
+            var dir = _env.FileSystem.Path.Combine(_addOnsPath, folder);
+            _env.FileSystem.Directory.CreateDirectory(dir);
+            _env.FileSystem.File.WriteAllText(_env.FileSystem.Path.Combine(dir, "old.lua"), $"old {folder}");
+        }
+
+        var ignoredDir = _env.FileSystem.Path.Combine(_addOnsPath, "BigWigs_Options");
+        _env.FileSystem.File.WriteAllText(_env.FileSystem.Path.Combine(ignoredDir, ".ignoreme"), "");
+        _env.FileSystem.File.WriteAllText(_env.FileSystem.Path.Combine(ignoredDir, "dev.lua"), "dev work");
+
+        var bundle = CreateMultiFolderBundle("BigWigs", new Dictionary<string, string[]>
+        {
+            ["BigWigs"] = ["BigWigs.toc", "Core.lua"],
+            ["BigWigs_Options"] = ["Options.toc"],
+            ["BigWigs_Plugins"] = ["Plugins.toc"],
+        });
+
+        var result = _installer.InstallAddOn(bundle);
+
+        Assert.That(result, Is.EquivalentTo(new[] { "BigWigs", "BigWigs_Options", "BigWigs_Plugins" }));
+
+        var bigWigsDir = _env.FileSystem.Path.Combine(_addOnsPath, "BigWigs");
+        Assert.That(_env.FileSystem.File.Exists(_env.FileSystem.Path.Combine(bigWigsDir, "BigWigs.toc")), Is.True);
+        Assert.That(_env.FileSystem.File.Exists(_env.FileSystem.Path.Combine(bigWigsDir, "old.lua")), Is.False);
+
+        Assert.That(_env.FileSystem.File.ReadAllText(_env.FileSystem.Path.Combine(ignoredDir, "dev.lua")), Is.EqualTo("dev work"));
+        Assert.That(_env.FileSystem.File.ReadAllText(_env.FileSystem.Path.Combine(ignoredDir, "old.lua")), Is.EqualTo("old BigWigs_Options"));
+        Assert.That(_env.FileSystem.File.Exists(_env.FileSystem.Path.Combine(ignoredDir, "Options.toc")), Is.False);
+        Assert.That(_env.FileSystem.File.Exists(_env.FileSystem.Path.Combine(ignoredDir, ".ignoreme")), Is.True);
+
+        var pluginsDir = _env.FileSystem.Path.Combine(_addOnsPath, "BigWigs_Plugins");
+        Assert.That(_env.FileSystem.File.Exists(_env.FileSystem.Path.Combine(pluginsDir, "Plugins.toc")), Is.True);
+        Assert.That(_env.FileSystem.File.Exists(_env.FileSystem.Path.Combine(pluginsDir, "old.lua")), Is.False);
+    }
+
+    [Test]
+    public void InstallAddOn_IgnoreMePresent_DoesNotCreateGitDirectory()
+    {
+        var addOnName = "MyAddOn";
+        var targetDir = _env.FileSystem.Path.Combine(_addOnsPath, addOnName);
+        _env.FileSystem.Directory.CreateDirectory(targetDir);
+        _env.FileSystem.File.WriteAllText(_env.FileSystem.Path.Combine(targetDir, ".ignoreme"), "");
+
+        _installer.InstallAddOn(CreateBundle(addOnName, ["file1.lua"]));
+
+        Assert.That(_env.FileSystem.Directory.Exists(_env.FileSystem.Path.Combine(targetDir, ".git")), Is.False);
+    }
+
+    [Test]
+    public void UninstallAddOn_IgnoreMePresent_PreservesFolder()
+    {
+        var addOnDir = _env.FileSystem.Path.Combine(_addOnsPath, "MyAddOn");
+        _env.FileSystem.Directory.CreateDirectory(addOnDir);
+        _env.FileSystem.File.WriteAllText(_env.FileSystem.Path.Combine(addOnDir, ".ignoreme"), "");
+        _env.FileSystem.File.WriteAllText(_env.FileSystem.Path.Combine(addOnDir, "dev.lua"), "dev");
+
+        _installer.UninstallAddOn("MyAddOn");
+
+        Assert.That(_env.FileSystem.Directory.Exists(addOnDir), Is.True);
+        Assert.That(_env.FileSystem.File.ReadAllText(_env.FileSystem.Path.Combine(addOnDir, "dev.lua")), Is.EqualTo("dev"));
+    }
+
+    [Test]
+    public void UninstallAddOn_MultiFolderBundle_IgnoreMeInOneFolder_PreservesOnlyThatFolder()
+    {
+        _config.SetInstalledFolders("BigWigs", ["BigWigs", "BigWigs_Options", "BigWigs_Plugins"]);
+
+        foreach (var folder in new[] { "BigWigs", "BigWigs_Options", "BigWigs_Plugins" })
+        {
+            var dir = _env.FileSystem.Path.Combine(_addOnsPath, folder);
+            _env.FileSystem.Directory.CreateDirectory(dir);
+            _env.FileSystem.File.WriteAllText(_env.FileSystem.Path.Combine(dir, "file.lua"), "content");
+        }
+
+        var ignoredDir = _env.FileSystem.Path.Combine(_addOnsPath, "BigWigs_Plugins");
+        _env.FileSystem.File.WriteAllText(_env.FileSystem.Path.Combine(ignoredDir, ".ignoreme"), "");
+
+        _installer.UninstallAddOn("BigWigs");
+
+        Assert.That(_env.FileSystem.Directory.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs")), Is.False);
+        Assert.That(_env.FileSystem.Directory.Exists(_env.FileSystem.Path.Combine(_addOnsPath, "BigWigs_Options")), Is.False);
+        Assert.That(_env.FileSystem.Directory.Exists(ignoredDir), Is.True);
+        Assert.That(_env.FileSystem.File.Exists(_env.FileSystem.Path.Combine(ignoredDir, "file.lua")), Is.True);
+    }
+
+    [Test]
     public void InstallAddOn_EmptyBundle_ThrowsInvalidOperationException()
     {
         var memoryStream = new MemoryStream();
