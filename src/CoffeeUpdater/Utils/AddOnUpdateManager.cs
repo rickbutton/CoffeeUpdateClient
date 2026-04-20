@@ -136,6 +136,11 @@ public class AddOnUpdateManager
                         var orphanPath = _fileSystem.Path.Combine(_config.AddOnsPath, orphan);
                         if (_fileSystem.Directory.Exists(orphanPath))
                         {
+                            if (_fileSystem.File.Exists(_fileSystem.Path.Combine(orphanPath, ".ignoreme")))
+                            {
+                                Log.Information("Skipping orphan folder '{Folder}' because .ignoreme exists", orphan);
+                                continue;
+                            }
                             _fileSystem.Directory.Delete(orphanPath, true);
                             Log.Information("Removed orphaned addon folder '{Folder}'", orphan);
                         }

@@ -73,6 +73,12 @@ public class AddOnBundleInstaller
                     var sourceDir = _fileSystem.Path.Combine(stagingPath, folder);
                     var targetDir = _fileSystem.Path.Combine(addOnsPath, folder);
 
+                    if (HasIgnoreMarker(targetDir))
+                    {
+                        Log.Information("Skipping install of folder '{Folder}' because .ignoreme exists", folder);
+                        continue;
+                    }
+
                     if (_fileSystem.Directory.Exists(targetDir))
                     {
                         _fileSystem.Directory.Delete(targetDir, true);
@@ -107,10 +113,22 @@ public class AddOnBundleInstaller
             var addOnPath = _fileSystem.Path.Combine(_config.AddOnsPath, folder);
             if (_fileSystem.Directory.Exists(addOnPath))
             {
+                if (HasIgnoreMarker(addOnPath))
+                {
+                    Log.Information("Skipping uninstall of folder '{Folder}' because .ignoreme exists", folder);
+                    continue;
+                }
                 _fileSystem.Directory.Delete(addOnPath, true);
                 Log.Information("Uninstalled addon folder '{Folder}'", folder);
             }
         }
         _config.RemoveInstalledFolders(name);
+    }
+
+    private bool HasIgnoreMarker(string folderPath)
+    {
+        if (!_fileSystem.Directory.Exists(folderPath))
+            return false;
+        return _fileSystem.File.Exists(_fileSystem.Path.Combine(folderPath, ".ignoreme"));
     }
 }

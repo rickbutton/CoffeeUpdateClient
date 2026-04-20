@@ -447,6 +447,36 @@ public class AddOnUpdateManagerTest
         Assert.That(_config.InstalledAddOnFolders.ContainsKey("BigWigs"), Is.False);
     }
 
+    [Test]
+    public async Task UpdateAddOns_Update_OrphanWithIgnoreMe_IsPreserved()
+    {
+        _config.SetInstalledFolders("BigWigs", ["BigWigs", "BigWigs_Options", "BigWigs_OldPlugin"]);
+
+        var orphanPath = Path.Combine(AddOnsPath, "BigWigs_OldPlugin");
+        _mockEnv.FileSystem.Directory.CreateDirectory(orphanPath);
+        _mockEnv.FileSystem.File.WriteAllText(Path.Combine(orphanPath, ".ignoreme"), "");
+        _mockEnv.FileSystem.File.WriteAllText(Path.Combine(orphanPath, "dev.lua"), "dev work");
+
+        SetupLocalAddOn("BigWigs", "1.0.0");
+
+        var manifest = new AddOnManifest
+        {
+            AddOns = [new AddOnMetadata { Name = "BigWigs", Version = "2.0.0" }]
+        };
+        _mockDownloader.SetManifest(manifest);
+        _mockDownloader.AddMultiFolderBundle("BigWigs", "2.0.0", new Dictionary<string, string[]>
+        {
+            ["BigWigs"] = ["BigWigs.toc"],
+            ["BigWigs_Options"] = ["Options.toc"],
+        });
+
+        await _updateManager.UpdateAddOns();
+
+        Assert.That(_mockEnv.FileSystem.Directory.Exists(orphanPath), Is.True);
+        Assert.That(_mockEnv.FileSystem.File.ReadAllText(Path.Combine(orphanPath, "dev.lua")), Is.EqualTo("dev work"));
+        Assert.That(_config.InstalledAddOnFolders["BigWigs"], Is.EquivalentTo(new[] { "BigWigs", "BigWigs_Options" }));
+    }
+
     private void SetupLocalAddOn(string name, string version)
     {
         var addOnPath = Path.Combine(AddOnsPath, name);
