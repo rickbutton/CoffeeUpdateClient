@@ -24,6 +24,7 @@ const s3Client = new S3({
 
 const ADDONS = [
     { name: "BigWigs", repo: "BigWigsMods/BigWigs" },
+    { name: "M33kAuras", repo: "m33shoq/M33kAuras" },
     { name: "NorthernSkyRaidTools", repo: "Reloe/NorthernSkyRaidTools" },
     { name: "RCLootCouncil", repo: "evil-morfar/RCLootCouncil2" },
 ];
